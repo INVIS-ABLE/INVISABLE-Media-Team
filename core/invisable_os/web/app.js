@@ -630,6 +630,66 @@ views.sources = async (root) => {
   </div>`).join("") || `<div class="muted">No sources yet — add credible UK-first sources above.</div>`;
 };
 
+// --- Agent Swarm Dashboard --------------------------------------------------
+const STAGE_CLASS = { scan: "pillar", generate: "", gate: "warn", schedule: "good" };
+
+views.swarm = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Agent Swarm</h2><div class="spacer"></div>
+    <button class="btn" id="run">Run a cycle</button></div>
+    <div class="muted">20 specialist bots scan → generate → gate → stock. The swarm always
+      generates more than it publishes and rejects more than it keeps — quality over volume.</div>
+    <div class="stats" id="swstats"></div>
+    <div id="swfunnel"></div>
+    <div class="row" style="margin-top:8px"><h3 style="margin:0">The 20 bots</h3></div>
+    <div id="swbots"></div>`;
+  $("#run", root).onclick = async (ev) => {
+    ev.target.disabled = true; ev.target.textContent = "Running…";
+    try {
+      const r = await api("/v1/swarm/run", { method: "POST", body: JSON.stringify({ drafts_per_topic: 2 }) });
+      renderFunnel($("#swfunnel", root), r);
+      toast(`Cycle: ${r.funnel.usable_drafts_queued} usable · ${r.funnel.stocked_to_war_chest} stocked`);
+      loadSwarm(root);
+    } catch (e) { toast("Failed: " + e.message); }
+    ev.target.disabled = false; ev.target.textContent = "Run a cycle";
+  };
+  loadSwarm(root);
+};
+
+async function loadSwarm(root) {
+  const s = await api("/v1/swarm/stats");
+  $("#swstats", root).innerHTML = [
+    ["Bots", s.bots], ["Produced", s.total_produced], ["Passed", s.total_passed],
+    ["Pass rate", s.overall_pass_rate == null ? "–" : Math.round(s.overall_pass_rate * 100) + "%"],
+  ].map(([l, n]) => `<div class="stat"><div class="n">${esc(String(n))}</div><div class="l">${l}</div></div>`).join("");
+  if (s.best_bot) $("#swstats", root).insertAdjacentHTML("afterend",
+    `<div class="muted" style="margin:6px 0">Best: <b>${esc(s.best_bot)}</b> · weakest: <b>${esc(s.weakest_bot || "–")}</b> ·
+      reserve tier <b>${esc(s.reserve.tier.replace("_", " "))}</b> (${s.reserve.ready} ready).</div>`);
+  const { bots } = await api("/v1/swarm/bots");
+  const byStage = {};
+  for (const b of bots) (byStage[b.stage] ||= []).push(b);
+  $("#swbots", root).innerHTML = ["scan", "generate", "gate", "schedule"].filter((st) => byStage[st]).map((st) => `
+    <div class="agentdept"><h3>${esc(st)} · ${byStage[st].length}</h3>
+      ${byStage[st].map((b) => `<div class="a"><b>${esc(b.name)}</b>
+        <span class="muted">— ${esc(b.role)}</span>
+        ${b.produced ? `<span class="badge ${STAGE_CLASS[st] || ""}">${b.passed}/${b.produced}${b.pass_rate != null ? ` · ${Math.round(b.pass_rate * 100)}%` : ""}</span>` : ""}
+      </div>`).join("")}
+    </div>`).join("");
+}
+
+function renderFunnel(node, r) {
+  const f = r.funnel;
+  const rows = [
+    ["Raw drafts", f.raw_drafts], ["Passed brand gate", f.passed_brand_gate],
+    ["Quality passed", f.quality_passed], ["Fact-check clean", f.fact_check_clean],
+    ["Usable → queue", f.usable_drafts_queued], ["Needs review", f.needs_human_review],
+    ["Stocked → War Chest", f.stocked_to_war_chest], ["Brand rejected", f.brand_rejected],
+  ];
+  node.innerHTML = `<div class="card"><div class="meta">
+      <span class="badge">cycle ${esc(r.cycle_id.slice(0, 8))}</span>
+      <span class="badge ${r.reject_rate > 0 ? "warn" : ""}">reject ${Math.round(r.reject_rate * 100)}%</span>
+    </div>${rows.map(([l, n]) => `<div class="slot"><span class="time" style="width:auto">${n}</span><span>${esc(l)}</span></div>`).join("")}</div>`;
+}
+
 // --- router ----------------------------------------------------------------
 async function show(name, seed) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === name));

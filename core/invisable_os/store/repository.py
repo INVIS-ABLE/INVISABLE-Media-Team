@@ -16,6 +16,7 @@ from invisable_os.models.departments import Opportunity, Partner, TagNetworkMemb
 from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.store.db import session_scope
 from invisable_os.store.models import (
+    BotOutputRow,
     ChannelRow,
     ExtractedHookRow,
     FounderRecognitionRow,
@@ -793,6 +794,54 @@ class Repository:
             row.last_used_at = _now()
             row.reuse_count = (row.reuse_count or 0) + 1
             return row.as_dict()
+
+    # --- Agent swarm: bot outputs ------------------------------------------
+
+    def add_bot_output(self, output: dict) -> str:
+        row_id = output.get("id") or uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                BotOutputRow(
+                    id=row_id,
+                    cycle_id=output.get("cycle_id", ""),
+                    bot_name=output.get("bot_name", ""),
+                    stage=output.get("stage", ""),
+                    task_type=output.get("task_type", ""),
+                    produced=output.get("produced", 0),
+                    passed=output.get("passed", 0),
+                    rejected=output.get("rejected", 0),
+                    score=output.get("score", 0.0),
+                    status=output.get("status", "ok"),
+                    output=output.get("output", {}),
+                )
+            )
+        return row_id
+
+    def list_bot_outputs(self, cycle_id: str | None = None, bot_name: str | None = None,
+                         limit: int = 500) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(BotOutputRow)
+            if cycle_id:
+                stmt = stmt.where(BotOutputRow.cycle_id == cycle_id)
+            if bot_name:
+                stmt = stmt.where(BotOutputRow.bot_name == bot_name)
+            stmt = stmt.order_by(BotOutputRow.created_at.desc()).limit(limit)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def bot_output_totals(self) -> dict[str, dict]:
+        """Aggregate produced/passed/rejected per bot, across all cycles."""
+        with session_scope() as s:
+            totals: dict[str, dict] = {}
+            for row in s.scalars(select(BotOutputRow)):
+                t = totals.setdefault(
+                    row.bot_name,
+                    {"produced": 0, "passed": 0, "rejected": 0, "cycles": 0, "stage": row.stage},
+                )
+                t["produced"] += row.produced or 0
+                t["passed"] += row.passed or 0
+                t["rejected"] += row.rejected or 0
+                t["cycles"] += 1
+            return totals
 
 
 def _as_utc(dt: datetime) -> datetime:
