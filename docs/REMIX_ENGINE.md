@@ -108,6 +108,14 @@ engine.run(ContentMode.CREATE_PARODY, topic="tool theft and invisible illness")
 7. **Voiceover Queue** — script, selected voice, ElevenLabs status, generated audio,
    subtitle status, export status.
 
+> **Live in the dashboard.** The **Scanner Dashboard**, **Reference Inbox**, **Remix
+> Studio** and **Rights Manager** are implemented as tabs in the installable PWA
+> ([`core/invisable_os/web`](../core/invisable_os/web)), wired to this API:
+> `GET /v1/remix/modes`, `POST /v1/scanner/scan`, `POST /v1/scanner/manual-link`,
+> `GET /v1/scanner/items`, `POST /v1/remix/create`, `GET /v1/rights`, and
+> `GET|POST /v1/rights-assets`. The Inbox's *generate content* button hands a
+> reference straight into the Remix Studio.
+
 ---
 
 ## Workflows

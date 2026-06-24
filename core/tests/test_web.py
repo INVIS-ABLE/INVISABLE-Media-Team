@@ -50,9 +50,14 @@ def test_dashboard_only_uses_existing_api_endpoints():
     known_prefixes = {
         "/v1/daily/plan", "/v1/queue", "/v1/calendar", "/v1/media", "/v1/agents",
         "/v1/values", "/v1/personality/mix", "/v1/channels", "/v1/brain/stats",
+        # Remix department screens (Scanner / Inbox / Remix Studio / Rights Manager)
+        "/v1/remix", "/v1/scanner", "/v1/rights",
     }
     for path in called:
         assert any(path.startswith(p) for p in known_prefixes), f"dashboard calls unknown {path}"
     # The read-only endpoints the dashboard depends on must actually respond.
-    for path in ("/v1/calendar", "/v1/agents", "/v1/values", "/v1/brain/stats"):
+    for path in (
+        "/v1/calendar", "/v1/agents", "/v1/values", "/v1/brain/stats",
+        "/v1/remix/modes", "/v1/scanner/items", "/v1/rights", "/v1/rights-assets",
+    ):
         assert client.get(path).status_code == 200, path
