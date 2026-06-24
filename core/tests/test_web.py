@@ -49,7 +49,7 @@ def test_dashboard_only_uses_existing_api_endpoints():
     called = set(re.findall(r"`?(/v1/[a-z/]+)", js))
     known_prefixes = {
         "/v1/daily/plan", "/v1/queue", "/v1/calendar", "/v1/media", "/v1/agents",
-        "/v1/values", "/v1/personality/mix", "/v1/channels", "/v1/brain/stats",
+        "/v1/values", "/v1/personality/mix", "/v1/channels", "/v1/brain",
         # Remix department screens (Scanner / Inbox / Remix Studio / Rights Manager /
         # Pop Culture Index / Voiceover Queue / Asset Library)
         "/v1/remix", "/v1/scanner", "/v1/rights",
@@ -79,7 +79,7 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/warchest", "/v1/warchest/items",
         "/v1/sources", "/v1/sources/hierarchy",
         "/v1/swarm/bots", "/v1/swarm/stats",
-        "/v1/integrations", "/v1/founder/recognition",
+        "/v1/integrations", "/v1/founder/recognition", "/v1/brain/alerts",
     ):
         assert client.get(path).status_code == 200, path
 

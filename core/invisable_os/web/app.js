@@ -528,6 +528,29 @@ views.recognition = async (root) => {
       <ul>${topPosts}</ul></div>`;
 };
 
+views.insights = async (root) => {
+  const d = await api("/v1/brain/alerts");
+  const alerts = d.alerts || [];
+  const card = (a) => {
+    const up = a.direction === "up";
+    const icon = up ? "✅" : "⚠️";
+    const sign = a.change_pct > 0 ? "+" : "";
+    return `<li><div class="row"><span>${icon} <strong>${esc(a.theme)}</strong> — ${esc(a.metric.replace(/_/g, " "))}</span>
+      <div class="spacer"></div><span class="badge ${up ? "founder" : ""}">${sign}${a.change_pct}%</span></div>
+      <div class="muted" style="font-size:.85em">${esc(a.recommendation)} <span style="opacity:.7">(now ${a.current_avg} vs baseline ${a.baseline_avg}, n=${a.samples})</span></div></li>`;
+  };
+  const body = alerts.length
+    ? `<ul>${alerts.map(card).join("")}</ul>`
+    : `<div class="muted">No performance shifts to report yet — Insights compares each theme's latest week to the prior 4 weeks of synced metrics. Once a few weeks of performance data accrue (via Integrations → metrics sync), momentum and declines surface here with a recommended action.</div>`;
+  root.innerHTML = `
+    <div class="row"><h2>Insights</h2><div class="spacer"></div>
+      <span class="badge founder">${d.momentum || 0} momentum</span>
+      <span class="badge">${d.declining || 0} declining</span>
+    </div>
+    <div class="muted" style="margin-bottom:10px">Proactive theme alerts — where a theme's performance shifted ≥20% vs its 4-week baseline, with what to do next.</div>
+    ${body}`;
+};
+
 // --- Remix department: Scanner Dashboard -----------------------------------
 const SCAN_LABEL = (m) => m.replace(/^scan_/, "").replace(/_/g, " ");
 const CREATE_LABEL = (m) => m.replace(/^create_/, "").replace(/_/g, " ");
