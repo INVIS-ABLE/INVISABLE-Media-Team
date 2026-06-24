@@ -44,6 +44,10 @@ body {
   padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; font-size: 14px;
 }
 .tabs button.active { color: var(--ink); border-color: var(--accent); background: var(--panel-2); }
+.tabs .tabgroup {
+  align-self: center; white-space: nowrap; padding: 0 4px 0 10px;
+  color: var(--muted); font-size: 12px; border-left: 1px solid var(--line); margin-left: 4px;
+}
 
 .view { padding: 8px 16px 16px; max-width: 1100px; margin: 0 auto; }
 .loading { color: var(--muted); padding: 40px; text-align: center; }

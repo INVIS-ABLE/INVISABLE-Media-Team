@@ -69,6 +69,8 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/studio",
         # Video Quality Gate inspector panel
         "/v1/video", "/v1/licensing",
+        # Creative Toolbelt — Quality Checker export gate
+        "/v1/export",
     }
     for path in called:
         assert any(path.startswith(p) for p in known_prefixes), f"dashboard calls unknown {path}"
