@@ -359,6 +359,150 @@ views.rights = async (root) => {
     </div></div>`).join("");
 };
 
+// --- Remix department: Pop Culture Index -----------------------------------
+const RISK_CLASS = (r) => (r === "high" ? "bad" : r === "medium" ? "warn" : "good");
+
+views.popculture = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Pop Culture Index</h2></div>
+    <div class="muted">Prefer paraphrase-safe, transformative wording over exact quotes —
+      exact film/TV lines carry copyright risk and must not be overused.</div>
+    <div class="form">
+      <input id="pctitle" class="input" placeholder="Source title (film / TV / phrase / meme)…" style="flex:1 1 220px" />
+      <input id="pctype" class="input" placeholder="Type (film, tv, phrase, format)" />
+      <input id="pcsafe" class="input" placeholder="Paraphrase-safe version…" style="flex:1 1 220px" />
+      <select id="pcrisk" class="input">
+        ${["none", "low", "medium", "high"].map((r) => `<option value="${r}">risk: ${r}</option>`).join("")}
+      </select>
+      <button class="btn" id="pcadd">Add reference</button>
+    </div>
+    <div class="cards" id="pclist"></div>
+    <div class="row" style="margin-top:18px"><h3>Meme formats</h3></div>
+    <div class="cards" id="memes"></div>`;
+  $("#pcadd", root).onclick = async () => {
+    const title = $("#pctitle", root).value.trim();
+    if (!title) return toast("Enter a source title");
+    try {
+      await api("/v1/popculture", { method: "POST", body: JSON.stringify({
+        source_title: title, reference_type: $("#pctype", root).value.trim() || "film",
+        paraphrase_safe: $("#pcsafe", root).value.trim(),
+        copyright_risk: $("#pcrisk", root).value }) });
+      toast("Reference added"); views.popculture(root);
+    } catch (e) { toast("Failed: " + e.message); }
+  };
+  const { references } = await api("/v1/popculture");
+  const list = $("#pclist", root);
+  list.innerHTML = (references || []).map((r) => `<div class="card">
+    <div class="hook">${esc(r.title || r.source_title || "(untitled)")}</div>
+    <div class="body">${esc(r.paraphrase_safe_version || r.paraphrase_safe || r.suggested_invisable_angle || "")}</div>
+    ${r.exact_quote ? `<div class="muted">Exact quote (use sparingly): “${esc(r.exact_quote)}”</div>` : ""}
+    <div class="meta">
+      <span class="badge pillar">${esc(r.source_type || r.reference_type || "ref")}</span>
+      <span class="badge ${RISK_CLASS(r.copyright_risk)}">risk: ${esc(r.copyright_risk || "medium")}</span>
+      ${r.tone ? `<span class="badge">${esc(r.tone)}</span>` : ""}
+    </div></div>`).join("") || `<div class="muted">No references yet.</div>`;
+  try {
+    const { formats } = await api("/v1/meme-formats");
+    $("#memes", root).innerHTML = (formats || []).map((f) => `<div class="card">
+      <div class="hook">${esc(f.format_name || f.name || "format")}</div>
+      <div class="body">${esc(f.example_safe_version || f.example_angle || f.structure || "")}</div>
+      <div class="meta"><span class="badge ${RISK_CLASS(f.copyright_risk)}">risk: ${esc(f.copyright_risk ?? f.risk_score ?? "low")}</span></div>
+    </div>`).join("") || `<div class="muted">No meme formats yet.</div>`;
+  } catch {}
+};
+
+// --- Remix department: Voiceover Queue -------------------------------------
+views.voiceover = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Voiceover Queue</h2></div>
+    <div class="muted">Lay a voiceover over an <b>owned / licensed / permitted</b> clip only.
+      Reference-only footage is blocked from assembly.</div>
+    <div class="form">
+      <select id="vasset" class="input" style="flex:1 1 240px"></select>
+      <select id="vstyle" class="input">
+        ${["founder", "narrator", "warm", "dry"].map((s) => `<option value="${s}">voice: ${s}</option>`).join("")}
+      </select>
+      <select id="vplatform" class="input">
+        ${["tiktok", "instagram"].map((p) => `<option value="${p}">${p}</option>`).join("")}
+      </select>
+      <button class="btn" id="vgo">Build voiceover job</button>
+    </div>
+    <textarea id="vscript" class="input" placeholder="Voiceover script…" style="width:100%;min-height:90px;margin-top:10px"></textarea>
+    <div id="vout"></div>`;
+  let assets = [];
+  try { assets = (await api("/v1/rights-assets")).assets || []; } catch {}
+  const usable = assets.filter((a) => USABLE.has(a.rights_status));
+  const sel = $("#vasset", root);
+  if (!usable.length) {
+    sel.innerHTML = `<option value="">(no usable assets — register one in Rights)</option>`;
+  } else {
+    sel.innerHTML = usable.map((a) =>
+      `<option value="${esc(a.id)}">${esc(a.title || a.file_path || a.id)} · ${esc(a.rights_status)}</option>`).join("");
+  }
+  $("#vgo", root).onclick = async (ev) => {
+    const asset_id = sel.value;
+    const script = $("#vscript", root).value.trim();
+    if (!asset_id) return toast("Register a usable asset first (Rights)");
+    if (!script) return toast("Write a voiceover script");
+    ev.target.disabled = true;
+    try {
+      const j = await api("/v1/voiceover/create", { method: "POST", body: JSON.stringify({
+        asset_id, script, voice_style: $("#vstyle", root).value, platform: $("#vplatform", root).value }) });
+      renderVoiceover($("#vout", root), j);
+      toast(j.blocked_reason ? "Blocked: " + j.blocked_reason : "Voiceover job built");
+    } catch (e) { toast("Failed: " + e.message); }
+    ev.target.disabled = false;
+  };
+};
+
+function renderVoiceover(node, j) {
+  if (j.error) { node.innerHTML = `<div class="muted">${esc(j.error)}</div>`; return; }
+  if (j.blocked_reason) {
+    node.innerHTML = `<div class="directive">⛔ Blocked — ${esc(j.blocked_reason)}</div>`;
+    return;
+  }
+  const steps = (j.ffmpeg_job && j.ffmpeg_job.steps) || [];
+  node.innerHTML = `<div class="card">
+    <div class="meta">
+      <span class="badge good">ready</span>
+      <span class="badge">${esc(j.clip_rights_status || "")}</span>
+      <span class="badge pillar">${esc(j.platform || "")}</span>
+      <span class="badge">export: ${esc(j.export_format || "")}</span>
+    </div>
+    <h3>ElevenLabs request</h3>
+    <pre class="script">${esc(JSON.stringify(j.elevenlabs_request || {}, null, 2))}</pre>
+    <h3>Subtitles</h3><div class="muted">format: ${esc(j.subtitle_format || "srt")} (Whisper → auto-subtitle)</div>
+    <h3>FFmpeg assembly</h3>
+    <div class="meta">${steps.map((s) => `<span class="badge">${esc(s)}</span>`).join("")}</div>
+    <div class="muted" style="margin-top:8px">Approval: routes through the normal queue before publishing.</div>
+  </div>`;
+}
+
+// --- Remix department: Asset Library ---------------------------------------
+views.library = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Asset Library</h2><div class="spacer"></div>
+    <button class="btn ghost" id="refresh">Refresh</button></div>
+    <div class="muted">Rights-classified source assets. Green = may enter assembled media;
+      amber = inspiration/reference only.</div>
+    <div class="row" id="counts" style="flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+    <div class="cards" id="list"></div>`;
+  $("#refresh", root).onclick = () => views.library(root);
+  let assets = [];
+  try { assets = (await api("/v1/rights-assets")).assets || []; } catch {}
+  const counts = {};
+  for (const a of assets) counts[a.rights_status] = (counts[a.rights_status] || 0) + 1;
+  $("#counts", root).innerHTML = Object.entries(counts)
+    .map(([s, n]) => `<span class="badge ${USABLE.has(s) ? "good" : "warn"}">${esc(s)}: ${n}</span>`).join("")
+    || `<span class="muted">No assets yet — register them in Rights.</span>`;
+  const list = $("#list", root);
+  list.innerHTML = assets.map((a) => `<div class="card">
+    <div class="body">${esc(a.title || a.file_path || a.source_url || a.id)}</div>
+    <div class="meta">
+      <span class="badge pillar">${esc(a.asset_type || "asset")}</span>
+      <span class="badge ${USABLE.has(a.rights_status) ? "good" : "warn"}">${esc(a.rights_status)}</span>
+      <span class="badge">${esc(a.owner || "—")}</span>
+      ${a.licence_notes ? `<span class="badge">${esc(a.licence_notes)}</span>` : ""}
+    </div></div>`).join("");
+};
+
 // --- router ----------------------------------------------------------------
 async function show(name, seed) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
