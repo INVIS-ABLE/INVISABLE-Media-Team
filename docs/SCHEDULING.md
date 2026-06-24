@@ -62,6 +62,27 @@ invisable produce <queue-item-id>     # render that item's assets
 
 API: `POST /v1/media/produce/{id}`, `GET /v1/media?item_id=…`.
 
+## Publishing & native Postiz scheduling
+
+`publish_due` posts approved items via the active publisher (Postiz when configured,
+else a safe dry-run). The **Postiz Scheduler Agent** can also hand a future post to
+Postiz to schedule *natively*:
+
+```
+POST /v1/publish/postiz/schedule   { "item_id": "…", "when": "2026-07-01T09:30:00Z" }
+```
+
+On success the item is marked `SCHEDULED` with Postiz's external id. Configure:
+
+- `POSTIZ_API_URL`, `POSTIZ_API_KEY` — instance + token (unset → dry-run).
+- `POSTIZ_INTEGRATIONS` — JSON mapping our platforms → Postiz integration ids, e.g.
+  `{"instagram":"intg_1","tiktok":"intg_2"}` (posts go to integration ids, not names).
+- `POSTIZ_POSTS_PATH` — override the posts endpoint if your instance differs.
+
+The payload is built by a pure, unit-tested function and the HTTP transport is
+injectable, so the publish/schedule path is fully tested without a live Postiz. An
+unmapped platform is a clear error, never a misdirected post.
+
 ## End-to-end operational loop
 
 ```

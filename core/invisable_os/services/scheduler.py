@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 
 from invisable_os.models.content import QueueStatus
 from invisable_os.publish import Publisher, get_publisher
+from invisable_os.publish.postiz import PostizPublisher
 from invisable_os.store import Repository, get_repository
 
 
@@ -38,3 +39,35 @@ def publish_due(
             failed.append({"id": item["id"], "detail": result.detail})
 
     return {"backend": pub.name, "published": published, "failed": failed, "count": len(published)}
+
+
+def schedule_to_postiz(
+    item_id: str,
+    when: datetime,
+    *,
+    repository: Repository | None = None,
+    publisher: PostizPublisher | None = None,
+) -> dict:
+    """Hand an approved item to Postiz to schedule natively at ``when``.
+
+    On success the item is marked SCHEDULED with Postiz's external id; the
+    Postiz Scheduler Agent's real action. Falls back to a clear error (never raises)
+    when Postiz isn't configured or the call fails, so the operator sees why.
+    """
+    repo = repository or get_repository()
+    item = repo.get_queue_item(item_id)
+    if not item:
+        return {"ok": False, "error": "not found", "id": item_id}
+
+    pub = publisher or PostizPublisher()
+    result = pub.schedule(item, when)
+    if result.ok:
+        repo.transition(item_id, QueueStatus.SCHEDULED, tags=item.get("tags", []))
+    return {
+        "ok": result.ok,
+        "id": item_id,
+        "backend": result.backend,
+        "external_id": result.external_id,
+        "scheduled_for": when.isoformat(),
+        "detail": result.detail,
+    }
