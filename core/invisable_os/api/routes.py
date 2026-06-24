@@ -71,6 +71,7 @@ from invisable_os.services import (
     seed_default_sources,
     select_next,
     stock_approved,
+    suggest_post_times,
     swarm_stats,
     sync_metrics,
     sync_post_to_dam,
@@ -340,6 +341,17 @@ def list_slots(channel_id: str) -> dict:
 def get_calendar() -> dict:
     """Scheduled posts grouped by day, for a calendar view."""
     return {"calendar": calendar()}
+
+
+@router.get("/v1/scheduling/suggest")
+def scheduling_suggest(
+    item_id: str | None = None,
+    platform: str | None = None,
+    theme: str | None = None,
+    top: int = 3,
+) -> dict:
+    """Best posting slots, learned from when published posts actually performed."""
+    return suggest_post_times(item_id=item_id, platform=platform, theme=theme, top=top)
 
 
 # --- Media pipeline ---------------------------------------------------------

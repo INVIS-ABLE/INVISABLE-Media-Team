@@ -25,7 +25,7 @@ from invisable_os.services.media import assemble_post, finish_post, produce_medi
 from invisable_os.services.metrics import sync_metrics
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due, schedule_to_postiz
-from invisable_os.services.scheduling import calendar, schedule_next
+from invisable_os.services.scheduling import calendar, schedule_next, suggest_post_times
 from invisable_os.services.selfcheck import SelfCheckReport, run_self_check
 from invisable_os.services.source_scan import gather_topics, seed_default_sources
 from invisable_os.services.swarm import (
@@ -50,6 +50,7 @@ __all__ = [
     "publish_due",
     "schedule_to_postiz",
     "schedule_next",
+    "suggest_post_times",
     "calendar",
     "produce_media",
     "assemble_post",
