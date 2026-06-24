@@ -66,6 +66,8 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/founder",
         # 5090 Studio Engine (local, offline content generation)
         "/v1/studio",
+        # Video Quality Gate inspector panel
+        "/v1/video", "/v1/licensing",
     }
     for path in called:
         assert any(path.startswith(p) for p in known_prefixes), f"dashboard calls unknown {path}"
@@ -80,3 +82,19 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/integrations", "/v1/founder/recognition",
     ):
         assert client.get(path).status_code == 200, path
+
+
+def test_gate_panel_is_wired():
+    """The Quality Gate inspector tab, view, and its backing endpoints exist."""
+    index = client.get("/app/").text
+    assert 'data-view="gate"' in index
+    js = client.get("/app/app.js").text
+    assert "views.gate" in js
+    # The endpoints the panel calls respond.
+    assert client.get("/v1/licensing/models").status_code == 200
+    report = client.post(
+        "/v1/video/qc",
+        json={"platform": "tiktok", "surface": "reel", "width": 1080, "height": 1920,
+              "sharpness": 0.9, "generation_models": ["flux-schnell"]},
+    )
+    assert report.status_code == 200 and report.json()["passed"] is True

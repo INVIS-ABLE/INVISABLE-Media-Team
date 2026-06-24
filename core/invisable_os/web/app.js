@@ -326,6 +326,90 @@ views.media = async (root) => {
     <div class="muted" style="font-size:12px;margin-top:8px">${esc(a.path)}</div></div>`).join("");
 };
 
+// --- Quality Gate inspector: run a VideoSpec through the gate, see verdicts ----
+const GATE_PRESETS = {
+  clean: {
+    platform: "tiktok", surface: "reel", width: 1080, height: 1920, fps: 30, duration_s: 20,
+    audio: { integrated_lufs: -14, true_peak_db: -1.5, music_present: true, voice_over_music_db: 10, music_licensed: true },
+    captions: [{ start: 0.5, end: 2.5, text: "You don't look ill" }, { start: 2.6, end: 4.6, text: "but it's real" }],
+    caption_boxes: [{ x0: 0.12, y0: 0.66, x1: 0.77, y1: 0.78 }],
+    regions: [{ kind: "founder_face", box: { x0: 0.3, y0: 0.2, x1: 0.7, y1: 0.5 } }],
+    transcript: "you don't look ill but it's real",
+    sharpness: 0.9, clutter: 0.2, generation_models: ["flux-schnell"],
+  },
+  bad: {
+    platform: "tiktok", surface: "reel", width: 1080, height: 1080, fps: 20, duration_s: 1,
+    audio: { integrated_lufs: -6, true_peak_db: 0.5, music_present: true, voice_over_music_db: 2, music_licensed: false, overlapping_narration: true },
+    captions: [{ start: 0.5, end: 2.5, text: "same" }, { start: 2.5, end: 12.5, text: "same" }],
+    caption_boxes: [{ x0: 0.2, y0: 0.85, x1: 0.9, y1: 0.95 }],
+    regions: [{ kind: "founder_face", box: { x0: 0.1, y0: 0.8, x1: 0.9, y1: 0.99 } }],
+    transcript: "completely different words that were actually spoken",
+    sharpness: 0.1, clutter: 0.95, generation_models: ["flux-dev"],
+  },
+};
+const GATE_BADGE = { pass: "good", warn: "warn", fail: "bad" };
+
+views.gate = async (root) => {
+  root.innerHTML = `
+    <div class="row"><h2>✅ Video Quality Gate</h2>
+      <span class="badge">pre-approval inspector</span></div>
+    <div class="muted">Run a clip spec through the gate to see every check. Only clips that clear it reach the approval queue.</div>
+    <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">
+      <button class="btn" data-preset="clean">Load clean short</button>
+      <button class="btn ghost" data-preset="bad">Load failing short</button>
+      <div class="spacer"></div>
+      <button class="btn good" id="runGate">Run gate</button>
+    </div>
+    <textarea id="gateSpec" spellcheck="false"
+      style="width:100%;box-sizing:border-box;margin-top:8px;min-height:140px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;font-family:ui-monospace,monospace;font-size:12px"></textarea>
+    <div id="gateResult" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:18px"><h3>Generation-model licences</h3></div>
+    <div class="muted">The gate blocks any clip built with a model not cleared for commercial use.</div>
+    <div id="gateLicences" style="margin-top:8px"></div>`;
+
+  const specBox = $("#gateSpec", root);
+  specBox.value = JSON.stringify(GATE_PRESETS.clean, null, 2);
+
+  root.querySelectorAll("[data-preset]").forEach((b) =>
+    (b.onclick = () => { specBox.value = JSON.stringify(GATE_PRESETS[b.dataset.preset], null, 2); }));
+
+  $("#runGate", root).onclick = async (ev) => {
+    let spec;
+    try { spec = JSON.parse(specBox.value); }
+    catch (e) { toast("Spec is not valid JSON"); return; }
+    ev.target.disabled = true;
+    try {
+      const report = await api("/v1/video/qc", { method: "POST", body: JSON.stringify(spec) });
+      renderGateReport($("#gateResult", root), report);
+    } catch (e) { toast("Gate failed: " + e.message); }
+    ev.target.disabled = false;
+  };
+
+  // Model-licence registry.
+  try {
+    const { models } = await api("/v1/licensing/models");
+    $("#gateLicences", root).innerHTML = models.map((m) => `
+      <div class="slot"><span class="badge ${m.commercial ? "good" : "bad"}">${m.commercial ? "commercial" : "blocked"}</span>
+        <b>${esc(m.name)}</b> <span class="muted">— ${esc(m.licence)}${m.verify ? " · verify" : ""}</span></div>`).join("");
+  } catch { $("#gateLicences", root).innerHTML = `<div class="muted">licence registry unavailable</div>`; }
+};
+
+function renderGateReport(node, report) {
+  const fails = report.failures.length;
+  const warns = report.warnings.length;
+  node.innerHTML = `
+    <div class="card"><div class="meta">
+        <span class="badge ${report.passed ? "good" : "bad"}">${report.passed ? "PASSES" : "BLOCKED"}</span>
+        <span class="badge ${fails ? "bad" : ""}">${fails} fail</span>
+        <span class="badge ${warns ? "warn" : ""}">${warns} warn</span>
+      </div>
+      ${report.checks.map((c) => `<div class="slot">
+        <span class="badge ${GATE_BADGE[c.status] || ""}">${esc(c.status)}</span>
+        <span style="min-width:160px"><b>${esc(c.name)}</b></span>
+        <span class="muted">${esc(c.detail || "")}</span></div>`).join("")}
+    </div>`;
+}
+
 views.agents = async (root) => {
   root.innerHTML = `<div class="row"><h2>Agent library</h2></div><div id="a"></div>`;
   const { agents } = await api("/v1/agents");
