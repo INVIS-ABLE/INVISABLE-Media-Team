@@ -482,7 +482,10 @@ views.integrations = async (root) => {
 };
 
 views.recognition = async (root) => {
-  const d = await api("/v1/founder/recognition");
+  const [d, attrib] = await Promise.all([
+    api("/v1/founder/recognition"),
+    api("/v1/founder/recognition/by-post?limit=8"),
+  ]);
   const hist = d.history || [];
   // The index is 0..1; render a simple bar chart so it reads left-to-right over time.
   const W = 640, H = 160, pad = 8;
@@ -502,6 +505,16 @@ views.recognition = async (root) => {
     ? Object.entries(latest.breakdown || {}).sort((a, b) => b[1] - a[1])
         .map(([k, v]) => `<li>${esc(k)}: ${v}</li>`).join("")
     : "";
+  const posts = attrib.posts || [];
+  const topPosts = posts.length
+    ? posts.map((p) => {
+        const parts = Object.entries(p.breakdown || {}).sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `${esc(k.replace(/_/g, " "))} ${v}`).join(" · ");
+        return `<li><div class="row"><span>${esc(p.hook || p.candidate_id)}</span>
+          <div class="spacer"></div><span class="badge founder">+${(p.contribution || 0).toFixed(3)}</span></div>
+          <div class="muted" style="font-size:.85em">${esc(p.platform || "")}${parts ? " — " + parts : ""}</div></li>`;
+      }).join("")
+    : `<li class="muted">No attributed posts yet — once recognition-bearing metrics (media mentions, podcast/speaking invitations, partner/sponsor enquiries, profile visits) are synced against published posts, the posts that earned them rank here.</li>`;
   root.innerHTML = `
     <div class="row"><h2>Founder Recognition</h2><div class="spacer"></div>
       <span class="badge founder">latest ${(d.latest || 0).toFixed(3)}</span>
@@ -509,7 +522,10 @@ views.recognition = async (root) => {
     </div>
     <div class="muted" style="margin-bottom:10px">Recognition is a consequence of impact — media mentions, podcast & speaking invitations, partner/sponsor enquiries, profile visits. Index 0–1, tracked over time.</div>
     ${chart}
-    ${breakdown ? `<div class="card" style="margin-top:14px"><h3>Latest contributors</h3><ul>${breakdown}</ul></div>` : ""}`;
+    ${breakdown ? `<div class="card" style="margin-top:14px"><h3>Latest contributors</h3><ul>${breakdown}</ul></div>` : ""}
+    <div class="card" style="margin-top:14px"><h3>Top performing posts</h3>
+      <div class="muted" style="margin-bottom:6px">Which posts drove the index — its impact split across the posts that earned it.</div>
+      <ul>${topPosts}</ul></div>`;
 };
 
 // --- Remix department: Scanner Dashboard -----------------------------------

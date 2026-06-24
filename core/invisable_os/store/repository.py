@@ -375,6 +375,22 @@ class Repository:
                 )
             )
 
+    def list_signals(self, limit: int = 2000) -> list[dict]:
+        """Every recorded performance signal (newest first), for attribution."""
+        with session_scope() as s:
+            rows = list(s.scalars(select(PerfSignalRow)))
+            rows.sort(key=lambda r: r.observed_at or _now(), reverse=True)
+            return [
+                {
+                    "candidate_id": r.candidate_id,
+                    "platform": r.platform,
+                    "metric": r.metric,
+                    "value": r.value,
+                    "themes": r.themes or [],
+                }
+                for r in rows[:limit]
+            ]
+
     # --- Founder Recognition Index ledger ----------------------------------
 
     def record_founder_recognition(self, index_value: float, breakdown: dict) -> str:

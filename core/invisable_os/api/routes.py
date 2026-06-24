@@ -50,6 +50,7 @@ from invisable_os.services import (
     consent_state,
     finish_post,
     gather_topics,
+    post_attribution,
     produce_media,
     publish_due,
     reserve_health,
@@ -185,6 +186,12 @@ def founder_recognition() -> dict:
     history = get_repository().list_founder_recognition()
     latest = history[-1]["index_value"] if history else 0.0
     return {"latest": latest, "points": len(history), "history": history}
+
+
+@router.get("/v1/founder/recognition/by-post")
+def founder_recognition_by_post(limit: int = 10) -> dict:
+    """Which published posts drove the Founder Recognition Index, ranked by impact."""
+    return post_attribution(limit=limit)
 
 
 class DailyRequest(BaseModel):

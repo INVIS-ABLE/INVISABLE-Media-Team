@@ -4,6 +4,7 @@ These are the operational seams: turning a day's plan into a persisted approval
 queue, and driving approved items out to the publisher.
 """
 
+from invisable_os.services.attribution import post_attribution
 from invisable_os.services.consent import consent_state
 from invisable_os.services.dam import sync_post_to_dam
 from invisable_os.services.fact_check import (
@@ -52,6 +53,7 @@ __all__ = [
     "select_next",
     "sync_post_to_dam",
     "sync_metrics",
+    "post_attribution",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",

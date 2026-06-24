@@ -78,6 +78,59 @@ class AlgorithmWatchtower:
             totals=dict(totals), founder_recognition_index=fri, learnings=learnings
         )
 
+    def attribute_recognition(self, signals: list) -> list[dict]:
+        """Split the Founder Recognition Index across the posts that earned it.
+
+        The index is a saturating, non-linear function of *aggregate* recognition
+        metrics, so a post's contribution isn't simply its raw numbers. We compute
+        each recognition metric's contribution to the index, then allocate that
+        contribution to posts in proportion to their share of the metric. The result
+        is exact — the per-post contributions sum back to the index — and explainable:
+        each post carries a per-metric breakdown ("podcast invitations: 0.15").
+
+        ``signals`` may be :class:`PerformanceSignal` objects or plain dicts with
+        ``candidate_id`` / ``metric`` / ``value`` keys (as the store returns them).
+        Returns posts ranked by contribution, highest first.
+        """
+        recognition = {m.value for m in FOUNDER_RECOGNITION_METRICS}
+        metric_totals: dict[str, float] = defaultdict(float)
+        by_post: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        for s in signals:
+            metric = s["metric"] if isinstance(s, dict) else s.metric.value
+            if metric not in recognition:
+                continue
+            cid = s["candidate_id"] if isinstance(s, dict) else s.candidate_id
+            value = float(s["value"] if isinstance(s, dict) else s.value)
+            metric_totals[metric] += value
+            by_post[cid][metric] += value
+
+        # Each recognition metric's (saturated, weighted) contribution to the index.
+        metric_contribution: dict[str, float] = {}
+        for metric_enum, weight in FOUNDER_RECOGNITION_METRICS.items():
+            metric = metric_enum.value
+            total = metric_totals.get(metric, 0.0)
+            ref = _REFERENCE.get(metric_enum, 10.0)
+            saturated = total / (total + ref) if total > 0 else 0.0
+            metric_contribution[metric] = weight * saturated
+
+        posts: list[dict] = []
+        for cid, metrics in by_post.items():
+            breakdown: dict[str, float] = {}
+            for metric, value in metrics.items():
+                total = metric_totals[metric]
+                share = value / total if total > 0 else 0.0
+                contrib = round(metric_contribution.get(metric, 0.0) * share, 4)
+                if contrib > 0:
+                    breakdown[metric] = contrib
+            posts.append({
+                "candidate_id": cid,
+                "contribution": round(sum(breakdown.values()), 4),
+                "breakdown": breakdown,
+                "metrics": {k: round(v, 2) for k, v in metrics.items()},
+            })
+        posts.sort(key=lambda p: p["contribution"], reverse=True)
+        return posts
+
     def founder_recognition_index(self, totals: dict[str, float]) -> float:
         """Composite 0+ index of founder recognition from recognition-bearing metrics.
 
