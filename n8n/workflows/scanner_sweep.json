@@ -1,0 +1,63 @@
+{
+  "name": "INVISABLE OS — Scanner Sweep",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "17 * * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Hourly at :17",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/harvest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"topics\": [\"invisible illness\", \"trades mental health\", \"tool theft\", \"benefits and PIP\", \"trending audio\"] }",
+        "options": {}
+      },
+      "id": "harvest",
+      "name": "Harvest abstracted signals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/opportunities/scan",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"topics\": [\"podcast guest\", \"speaking\", \"awards\", \"sponsorship\", \"press call-out\"] }",
+        "options": {}
+      },
+      "id": "opportunities",
+      "name": "Raise opportunities",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 720, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "Signals are abstracted (never copied) and persisted inside the core, into INVISABLE_BRAIN + `trend_signal`. Opportunities (podcasts / speaking / sponsors) are scored for fit and saved for the founder to review in the PWA.",
+        "height": 160,
+        "width": 320
+      },
+      "id": "note",
+      "name": "Abstracted-only, persisted in core",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 960, 220 ]
+    }
+  ],
+  "connections": {
+    "Hourly at :17": { "main": [ [ { "node": "Harvest abstracted signals", "type": "main", "index": 0 } ] ] },
+    "Harvest abstracted signals": { "main": [ [ { "node": "Raise opportunities", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}

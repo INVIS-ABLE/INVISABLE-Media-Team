@@ -1,0 +1,60 @@
+{
+  "name": "INVISABLE OS — Nightly Learning",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "40 23 * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every night 23:40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/metrics/sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "metrics",
+      "name": "Pull metrics → Watchtower",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/founder/recognition",
+        "options": {}
+      },
+      "id": "recognition",
+      "name": "Read Founder Recognition Index",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 720, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "Metricool (or provided) metrics are ingested through the Watchtower, which learns which themes drive genuine value and updates the **Founder Recognition Index** — recognition as a consequence of impact. Learnings are written to INVISABLE_BRAIN inside the core, so tomorrow's tournament scores smarter.",
+        "height": 180,
+        "width": 340
+      },
+      "id": "note",
+      "name": "Learning loop closes here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 960, 220 ]
+    }
+  ],
+  "connections": {
+    "Every night 23:40": { "main": [ [ { "node": "Pull metrics → Watchtower", "type": "main", "index": 0 } ] ] },
+    "Pull metrics → Watchtower": { "main": [ [ { "node": "Read Founder Recognition Index", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}

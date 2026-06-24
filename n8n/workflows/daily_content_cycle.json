@@ -29,14 +29,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.INVISABLE_CORE_URL}}/v1/tournament/run",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/daily/plan",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{ \"brief\": \"Raise awareness that invisible illness is real and you are not alone\", \"platform\": \"instagram\", \"count\": 120, \"select\": 5 }",
+        "jsonBody": "{ \"candidates_per_slot\": 16, \"persist\": true }",
         "options": {}
       },
-      "id": "tournament",
-      "name": "Run Content Tournament",
+      "id": "daily_plan",
+      "name": "Plan & queue the day (20 posts)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [ 720, 300 ]
@@ -48,36 +48,49 @@
           "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{$json.selected}}",
+              "leftValue": "={{$json.total}}",
               "rightValue": 0,
               "operator": { "type": "number", "operation": "gt" }
             }
           ]
         }
       },
-      "id": "have_winners",
-      "name": "Winners selected?",
+      "id": "have_posts",
+      "name": "Posts queued?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [ 960, 300 ]
     },
     {
       "parameters": {
-        "content": "Winners are returned already gated by the guardrails and rebalanced for ~80% founder presence. Wire your Postiz / publishing node here to schedule them. Each winner includes hook, total score, founder flag, and rationale.",
-        "height": 160,
-        "width": 320
+        "method": "GET",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/queue?status=pending_review",
+        "options": {}
       },
-      "id": "publish_note",
-      "name": "→ Publish (Postiz)",
+      "id": "queue",
+      "name": "Read approval queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 1200, 240 ]
+    },
+    {
+      "parameters": {
+        "content": "The day is generated, gated, scored, spun and **persisted to the approval queue** (status `pending_review`). Nothing publishes automatically — the founder approves in the PWA (`/app`). Approval moves items to the scheduler; the Media Production workflow renders approved video briefs; the Publish step (or `POST /v1/publish/run`) takes due items live.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "human_gate_note",
+      "name": "Human approval gate (PWA)",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [ 1200, 220 ]
+      "position": [ 1200, 460 ]
     }
   ],
   "connections": {
     "Every morning 07:00": { "main": [ [ { "node": "Harvest public signals", "type": "main", "index": 0 } ] ] },
-    "Harvest public signals": { "main": [ [ { "node": "Run Content Tournament", "type": "main", "index": 0 } ] ] },
-    "Run Content Tournament": { "main": [ [ { "node": "Winners selected?", "type": "main", "index": 0 } ] ] }
+    "Harvest public signals": { "main": [ [ { "node": "Plan & queue the day (20 posts)", "type": "main", "index": 0 } ] ] },
+    "Plan & queue the day (20 posts)": { "main": [ [ { "node": "Posts queued?", "type": "main", "index": 0 } ] ] },
+    "Posts queued?": { "main": [ [ { "node": "Read approval queue", "type": "main", "index": 0 } ], [] ] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [ { "name": "invisable-os" } ]

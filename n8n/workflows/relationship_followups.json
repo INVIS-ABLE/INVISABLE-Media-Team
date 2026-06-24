@@ -1,0 +1,77 @@
+{
+  "name": "INVISABLE OS — Relationship Follow-ups",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "3 9 * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every morning 09:03",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/partners",
+        "options": {}
+      },
+      "id": "partners",
+      "name": "List partners",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "partners",
+        "options": {}
+      },
+      "id": "split",
+      "name": "Each partner",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [ 720, 300 ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.status}}",
+              "rightValue": "active",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "due",
+      "name": "Active relationship?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [ 960, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "Surfaces active partners so the founder is nudged to keep relationships warm (PWA notification). A dedicated `relationship_touch.follow_up_at <= today` query is a small future core endpoint; until then this lists partners and filters by status. Read-only — it never contacts anyone automatically.",
+        "height": 180,
+        "width": 360
+      },
+      "id": "note",
+      "name": "Founder nudge (read-only)",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 1200, 240 ]
+    }
+  ],
+  "connections": {
+    "Every morning 09:03": { "main": [ [ { "node": "List partners", "type": "main", "index": 0 } ] ] },
+    "List partners": { "main": [ [ { "node": "Each partner", "type": "main", "index": 0 } ] ] },
+    "Each partner": { "main": [ [ { "node": "Active relationship?", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}

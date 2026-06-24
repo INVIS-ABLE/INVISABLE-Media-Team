@@ -1,8 +1,12 @@
 # n8n Workflow Map
 
 n8n is the orchestration spine. Each workflow calls the `core` API
-(`{{$env.INVISABLE_CORE_URL}}` = `http://core:8080`), which holds all the logic. The
-already-shipped daily cycle lives at [`n8n/workflows/daily_content_cycle.json`](../n8n/workflows/daily_content_cycle.json).
+(`{{$env.INVISABLE_CORE_URL}}` = `http://core:8080`), which holds all the logic.
+
+**All seven workflows below are now shipped** as importable JSON in
+[`n8n/workflows/`](../n8n/workflows/) and are validated against the live API by
+`core/tests/test_n8n_workflows.py` (every `/v1` path + method a workflow calls must
+exist on the API). See [`n8n/README.md`](../n8n/README.md) for the per-file table.
 
 ## Core workflows
 
