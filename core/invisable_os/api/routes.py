@@ -63,6 +63,7 @@ from invisable_os.services import (
     format_leaderboard,
     gather_topics,
     launch_campaign,
+    newsroom_brief,
     post_attribution,
     produce_media,
     publish_due,
@@ -188,6 +189,32 @@ class CommentWarRoomRequest(BaseModel):
 def comment_war_room(req: CommentWarRoomRequest) -> dict:
     """Comment War Room: triage incoming comments and draft safe replies."""
     return triage_comments(req.comments, platform=req.platform)
+
+
+class NewsroomRequest(BaseModel):
+    headline: str
+    summary: str = ""
+    source_name: str = ""
+    source_url: str = ""
+    source_type: str = "news"
+    platform: Platform = Platform.TIKTOK
+    count: int = Field(default=4, ge=1, le=12)
+    persist: bool = False
+
+
+@router.post("/v1/newsroom/brief")
+def newsroom(req: NewsroomRequest) -> dict:
+    """Newsroom Mode: turn a breaking item into source-grounded, gated angles."""
+    return newsroom_brief(
+        req.headline,
+        summary=req.summary,
+        source_name=req.source_name,
+        source_url=req.source_url,
+        source_type=req.source_type,
+        platform=req.platform,
+        count=req.count,
+        persist=req.persist,
+    )
 
 
 @router.post("/v1/harvest")
