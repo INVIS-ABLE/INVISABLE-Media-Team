@@ -10,7 +10,11 @@ WORKDIR /app
 # Install dependencies first for better layer caching.
 COPY pyproject.toml README.md ./
 COPY invisable_os ./invisable_os
-RUN pip install --upgrade pip && pip install ".[llm,memory,postgres]"
+# Alembic config + migrations ship in the image so production can run
+# `alembic upgrade head` against Postgres.
+COPY alembic.ini ./
+COPY migrations ./migrations
+RUN pip install --upgrade pip && pip install ".[llm,memory,postgres,migrations]"
 
 EXPOSE 8080
 
