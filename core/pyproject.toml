@@ -28,11 +28,13 @@ dependencies = [
 llm = ["anthropic>=0.40"]
 memory = ["chromadb>=0.5"]
 postgres = ["psycopg[binary]>=3.1"]
+migrations = ["alembic>=1.13"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
     "mypy>=1.9",
+    "alembic>=1.13",
 ]
 
 [project.scripts]

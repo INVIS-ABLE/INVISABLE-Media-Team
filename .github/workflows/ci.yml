@@ -30,3 +30,55 @@ jobs:
 
       - name: Test
         run: pytest -q
+
+  # Exercise the same ORM + repository against real PostgreSQL (the rest of the
+  # suite runs on SQLite). test_postgres_store.py runs only when TEST_DATABASE_URL
+  # is set, which this job provides via the postgres service.
+  test-postgres:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: invisable
+          POSTGRES_PASSWORD: invisable
+          POSTGRES_DB: invisable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U invisable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://invisable:invisable@localhost:5432/invisable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev,postgres,migrations]"
+
+      - name: Repository round-trip on Postgres
+        run: pytest tests/test_postgres_store.py -q
+
+      - name: Alembic upgrade head on Postgres
+        env:
+          DATABASE_URL: postgresql+psycopg://invisable:invisable@localhost:5432/invisable
+        run: alembic upgrade head
+
+  # Catch Dockerfile / dependency breakage by building the core image (no push).
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build core image
+        run: docker build -t invisable-core:ci core
