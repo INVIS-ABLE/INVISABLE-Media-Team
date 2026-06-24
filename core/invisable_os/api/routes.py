@@ -51,6 +51,7 @@ from invisable_os.services import (
     CREDIBILITY_HIERARCHY,
     AgentSwarm,
     assemble_post,
+    build_split,
     calendar,
     check_post,
     consent_state,
@@ -58,6 +59,7 @@ from invisable_os.services import (
     export_snapshot,
     failsafe_status,
     finish_post,
+    format_leaderboard,
     gather_topics,
     launch_campaign,
     post_attribution,
@@ -769,6 +771,30 @@ def campaign_launch(req: CampaignRequest) -> dict:
         platform=req.platform,
         persist=req.persist,
     )
+
+
+class SplitTestRequest(BaseModel):
+    brief: str
+    formats: list[ContentFormat] | None = None
+    platform: Platform = Platform.TIKTOK
+    persist: bool = False
+
+
+@router.post("/v1/split/build")
+def split_build(req: SplitTestRequest) -> dict:
+    """Format Split Testing: one gated variant of an idea per format, as one experiment."""
+    return build_split(
+        req.brief,
+        formats=req.formats,
+        platform=req.platform,
+        persist=req.persist,
+    )
+
+
+@router.get("/v1/split/leaderboard")
+def split_leaderboard(metric: str | None = None, min_samples: int = 3) -> dict:
+    """Which content formats perform best, by recorded signals, with a recommendation."""
+    return format_leaderboard(metric=metric, min_samples=min_samples)
 
 
 @router.get("/v1/failsafe/status")
