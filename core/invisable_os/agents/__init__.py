@@ -9,18 +9,26 @@ agent can be prompted out of the values.
 
 from invisable_os.agents.registry import (
     AGENT_REGISTRY,
+    TEAM_ORDER,
     Agent,
     Department,
+    Team,
+    by_team,
     get_agent,
+    pipeline,
     route,
     system_prompt_for,
 )
 
 __all__ = [
     "AGENT_REGISTRY",
+    "TEAM_ORDER",
     "Agent",
     "Department",
+    "Team",
+    "by_team",
     "get_agent",
+    "pipeline",
     "route",
     "system_prompt_for",
 ]

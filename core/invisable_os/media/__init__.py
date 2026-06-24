@@ -12,5 +12,21 @@ media library, ready for the approval queue.
 
 from invisable_os.media.base import Renderer, RenderResult
 from invisable_os.media.producer import MediaProducer
+from invisable_os.media.safe_area import (
+    Surface,
+    VisualLayoutAgent,
+    get_template,
+)
+from invisable_os.media.video_qc import VideoQCReport, VideoQualityGate, VideoSpec
 
-__all__ = ["Renderer", "RenderResult", "MediaProducer"]
+__all__ = [
+    "Renderer",
+    "RenderResult",
+    "MediaProducer",
+    "Surface",
+    "VisualLayoutAgent",
+    "get_template",
+    "VideoQualityGate",
+    "VideoSpec",
+    "VideoQCReport",
+]

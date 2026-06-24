@@ -1,81 +1,75 @@
 # Agent Library
 
-38 specialist agents across the departments. The **canonical source** is
+77 specialist agents, organised as a **multi-agent production studio** of seven
+pipeline teams. The **canonical source** is
 [`core/invisable_os/agents/registry.py`](../core/invisable_os/agents/registry.py) —
-it is real, callable code: `GET /v1/agents` lists them and `GET /v1/agents/route?task=…`
-routes a task to the best-matched specialists.
+it is real, callable code:
+
+- `GET /v1/agents` lists every agent
+- `GET /v1/agents/teams` groups them into the seven teams, in pipeline order
+- `GET /v1/agents/route?task=…` routes a task to the best-matched specialists
 
 Every agent's system prompt is prefixed with the shared `GUARDRAIL_PREAMBLE`, so the
-Prime Directive, brand safety, originality, anti-fabrication, and the humour rules
-travel with **every** call — an agent cannot be prompted out of the values.
+Prime Directive, brand safety, originality, anti-fabrication, copyright/medical rules,
+and the humour rules travel with **every** call — an agent cannot be prompted out of
+the values. Each agent also notes it is *one small specialist in a larger studio*:
+do one job well, return clean structured output for the next stage, trust the gates.
 
-## Roster (by department)
+## The pipeline
 
-### Content
-- **Creative Director** — Set the angle and standard for each brief; ensure variety and brand voice.
-- **Hook Writer** — Write scroll-stopping opening lines that are honest, not clickbait.
-- **Caption Writer** — Write platform-native captions in a warm, British, human voice.
-- **Hashtag Specialist** — Choose relevant, non-spammy hashtags that reach the right community.
-- **Storyteller** — Shape real, consented experiences into honest narrative arcs.
-- **Educator** — Explain invisible illness clearly and accurately in plain English.
-- **Founder Voice Agent** — Write in Stephen Garnham's genuine advocacy voice; never invent experiences.
+```
+research → strategy → writing → production → quality → publishing → learning
+```
 
-### Creative
-- **Humour Agent** — Add warm, self-deprecating, British humour; never punch down.
-- **Meme Generator** — Create brand-safe trades / chronic-illness / community memes.
-- **Story Arc Builder** — Turn one idea into a TikTok, Reel, carousel, quote card and founder take.
+Each agent has a `department` (which part of the agency it belongs to) and a `team`
+(which pipeline stage it serves). See
+[`docs/PRODUCTION_STUDIO.md`](./PRODUCTION_STUDIO.md) for the full flow.
 
-### Video / Production
-- **Video Prompt Engineer** — Write prompts for Flux/Wan/Hunyuan/LTX and a shot/B-roll plan.
-- **Voiceover Writer** — Write natural, spoken-word scripts for ElevenLabs narration.
-- **Graphic Designer** — Brief quote cards and carousels for Canva/ComfyUI within brand style.
-- **B-Roll Librarian** — Maintain libraries of sites, vans, tools, hospitals, offices, daily life.
-- **Asset Librarian** — Catalogue and retrieve approved assets; enforce consent on real people.
-- **Voice Library Agent** — Manage consented founder/ambassador/narrator voices for consistency.
+### 1. Research — scan the world, learn structures, never copy
+Trend Scanner · News Scanner · Pop Culture Scanner · Meme Scanner · Creator Scanner ·
+Invisible Illness Scanner · Trades Scanner · Algorithm Watcher · Researcher ·
+Trend Analyst · NHS & Benefits Knowledge Agent · Construction Knowledge Agent ·
+Competitor Intelligence Agent · Opportunity Scanner Agent · Sponsor Opportunity Agent
 
-### Research / Knowledge
-- **Researcher** — Gather accurate, public, verifiable information on a topic.
-- **Trend Analyst** — Identify genuine, relevant trends; never chase outrage.
-- **NHS & Benefits Knowledge Agent** — Track PIP/ESA/NHS/employment-law changes; explain plainly; flag for review.
-- **Construction Knowledge Agent** — Track tool-theft, safety, insurance and industry changes for trades.
+### 2. Strategy — pick the angle, position the founder, check fit
+Creative Director · Founder Positioning Agent · Mission Alignment Agent ·
+Culture Fit Agent · Platform Fit Agent
 
-### Intelligence
-- **Competitor Intelligence Agent** — Track what comparable creators post and what resonates; learn, never copy.
-- **Opportunity Scanner Agent** — Find podcasts, speaking, events, awards, sponsorships likely to fit.
-- **Sponsor Opportunity Agent** — Surface sponsor/CSR opportunities with a fit score and outreach idea.
+### 3. Writing — hooks, captions, scripts, CTAs
+Hook Writer · Caption Writer · Script Writer · Voiceover Writer · One-Liner Writer ·
+British Humour Writer · CTA Writer · Hashtag Writer · Storyteller · Educator ·
+Founder Voice Agent
 
-### Relationship
-- **Relationship CRM Agent** — Maintain ambassador/partner contact history, interests, follow-ups.
-- **Partner Growth Agent** — Track partners (CT1, GT Insurance, Bald Builders) and suggest joint campaigns.
+### 4. Production — build the assets
+Video Builder · Video Prompt Engineer · Caption Renderer · Audio Cleaner ·
+**Visual Layout Agent** · Thumbnail Agent · Carousel Builder · Story Builder ·
+Meme Builder · Effects Agent · Graphic Designer · B-Roll Librarian · Asset Librarian ·
+Voice Library Agent
 
-### Growth
-- **Viral Hook Librarian** — Save high-performing hooks and remix them into fresh, original openings.
-- **Comment-to-Content Agent** — Turn genuine questions/objections in comments into helpful content.
-- **Community Story Agent** — Categorise consented submitted stories and suggest formats.
+### 5. Quality — gates; nothing ships that fails any gate
+Brand Guardian · Copyright Risk Agent · Medical Risk Agent · Charity Reputation Agent ·
+Sponsor Safety Agent · **Visual Obstruction Agent** · Audio Quality Agent ·
+Caption Accuracy Agent · Platform Compliance Agent · Human Authenticity Agent ·
+Compliance / Sensitivity Checker · Quality Control Agent
 
-### PR
-- **Press/Media Agent** — Maintain journalist/podcast databases and suggest which story to pitch.
-- **Press Release Generator** — Turn campaigns into accurate, media-ready releases.
+### 6. Publishing — approval, scheduling, amplification, recovery
+Approval Queue Agent · Postiz Scheduler Agent · Story Amplification Agent ·
+Content Recovery Agent · Founder Override Agent · Campaign Factory Agent
 
-### Analytics
-- **Analytics Agent** — Read performance, find what genuinely resonated, feed learning back.
-- **Repurposing Agent** — Identify top performers worth repurposing across formats.
-
-### Automation
-- **Scheduler Agent** — Sequence the approved queue across platforms and times.
-- **Campaign Factory Agent** — Expand one topic into a full multi-format campaign with tags and CTAs.
-
-### Governance (veto power)
-- **Brand Guardian** — Hold veto power over anything off-brand, risky, or trust-damaging.
-- **Compliance / Sensitivity Checker** — Check for ableism, hate, harassment, misinformation and policy risk.
-- **Mission Alignment Agent** — Score every idea on awareness/community/fundraising/partner/long-term impact.
-- **Quality Control Agent** — Score the 11 quality dimensions and send anything below bar back to improve.
+### 7. Learning — feed results back into `INVISABLE_BRAIN`
+Analytics Agent · Performance Pattern Agent · Content Graveyard Agent ·
+Winning Formula Agent · Founder Recognition Agent · Repurposing Agent ·
+Viral Hook Librarian · Comment-to-Content Agent · Community Story Agent ·
+Relationship CRM Agent · Partner Growth Agent · Press/Media Agent ·
+Press Release Generator · Story Arc Builder
 
 ## Using an agent
 
 ```python
-from invisable_os.agents import get_agent, route
+from invisable_os.agents import get_agent, route, by_team, pipeline, Team
 
-route("write a funny tiktok hook about tool theft")   # → [Hook Writer, Humour Agent, …]
-get_agent("Brand Guardian").system_prompt()           # full prompt, guardrails included
+route("write a funny tiktok hook about tool theft")   # → [Hook Writer, Humour…, …]
+get_agent("Visual Layout Agent").system_prompt()      # full prompt, guardrails included
+by_team(Team.QUALITY)                                 # every quality-gate specialist
+pipeline()                                            # {Team: [Agent, …]} in order
 ```
