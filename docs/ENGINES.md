@@ -66,8 +66,17 @@ saturating transform so a single spike can't dominate.
 
 Reduces everything to **abstracted signals** (topic, kind, summary, source_type) —
 never verbatim creator content — and stores them as `trend_signal` memories.
-Connectors (Firecrawl, Crawl4AI, Feedly, Google Trends, AnswerThePublic) plug in
-behind `harvest()`.
+Connectors plug in behind `harvest()` ([`engines/connectors.py`](../core/invisable_os/engines/connectors.py)):
+
+- **Firecrawl** — web search via `/v1/search`, abstracted to a *count + topic* signal
+  (`FIRECRAWL_API_KEY`, `FIRECRAWL_API_URL`, `FIRECRAWL_SEARCH_LIMIT`).
+- **Crawl4AI** — crawls a configured source set on a self-hosted instance
+  (`CRAWL4AI_BASE_URL`, `CRAWL4AI_SOURCES`).
+- **Feedly** and **Google Trends** — fresh items / interest scores.
+
+Each connector returns abstracted topic-level signals only (never verbatim content),
+uses an injectable transport so the abstraction is tested without a live API, and
+degrades to `[]` when unconfigured or unreachable — so the Harvester always runs.
 
 `POST /v1/harvest`
 
