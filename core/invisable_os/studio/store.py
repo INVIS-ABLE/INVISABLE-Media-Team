@@ -175,6 +175,15 @@ class StudioStore:
         md.write_text(body, encoding="utf-8")
         return md
 
+    def clear_status(self, status: StudioStatus | str) -> int:
+        """Delete every post in one folder (e.g. clear today's generated drafts)."""
+        folder = StudioStatus(status)
+        removed = 0
+        for path in self._dir(folder).glob("*.json"):
+            path.unlink(missing_ok=True)
+            removed += 1
+        return removed
+
     # -- stats ---------------------------------------------------------------
 
     def stats(self) -> dict:

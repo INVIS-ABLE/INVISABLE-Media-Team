@@ -37,6 +37,183 @@ async function refreshHealth() {
 // --- views -----------------------------------------------------------------
 const views = {};
 
+// --- Co-Pilot: human-led operating modes + emergency controls --------------
+const MODE_KEYS = ["introduction", "modest_growth", "active_influencer", "career"];
+
+views.copilot = async (root) => {
+  const [modes, status] = await Promise.all([api("/v1/operating/modes"), api("/v1/operating/status")]);
+  const m = status.mode;
+  const ctl = status.controls;
+  const fo = status.founder_override || {};
+  const range = (r) => `${r.min}–${r.max}`;
+  const cell = (n, l) => `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+
+  root.innerHTML = `
+    <div class="row">
+      <h2>🧭 Co-Pilot</h2>
+      <span class="badge">human-led · Stephen is editor-in-chief</span>
+      <div class="spacer"></div>
+      <span class="badge ${status.posting_blocked ? "bad" : "good"}">${status.posting_blocked ? "posting paused" : "live"}</span>
+    </div>
+    <div class="muted">The AI supports Stephen — ideas, drafts, captions, suggested comments, media, trends, queue organisation. It never auto-acts.</div>
+
+    <h3 style="margin-top:16px">Current mode</h3>
+    <div class="row" id="modeSel" style="flex-wrap:wrap;gap:6px"></div>
+    <div class="card" style="margin-top:8px">
+      <div class="meta"><span class="badge pillar">Level ${m.level}</span><strong>${esc(m.name)}</strong>
+        <span class="badge ${m.risk_level === "low" ? "good" : m.risk_level === "moderate" ? "warn" : "bad"}">risk: ${esc(m.risk_level)}</span>
+        <span class="badge good">approval required</span></div>
+      <div class="body">${esc(m.purpose)}</div>
+      <ul class="muted" style="margin:6px 0 0;padding-left:18px">${m.behaviours.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>
+      <div class="meta" style="margin-top:6px">${m.best_for.map((b) => `<span class="badge">${esc(b)}</span>`).join("")}</div>
+    </div>
+
+    <h3 style="margin-top:16px">Today</h3>
+    <div class="stats">
+      ${cell(range(status.posts_allowed_today), "Posts allowed")}
+      ${cell(range(status.stories_allowed_today), "Stories allowed")}
+      ${cell(status.pending_approvals, "Pending approvals")}
+      ${cell(status.pending_interactions, "Pending interactions")}
+      ${cell(esc(status.risk_level), "Risk level")}
+      ${cell(status.human_approval_required ? "YES" : "no", "Human approval")}
+    </div>
+    <div class="card" style="margin-top:8px">
+      <div class="meta"><strong>Recommended actions</strong><span class="muted">— suggestions only; nothing happens without you</span></div>
+      ${status.recommended_actions.length
+        ? status.recommended_actions.map((a) => `<div class="slot"><span>✔ <strong>${esc(a.action)}</strong> — ${esc(a.detail)}</span></div>`).join("")
+        : `<div class="muted">All clear.</div>`}
+    </div>
+
+    <h3 style="margin-top:16px">Emergency controls</h3>
+    <div class="row" id="ctlRow" style="flex-wrap:wrap;gap:6px">
+      <button class="btn ${ctl.pause_all ? "good" : "ghost"}" data-ctl="pause_all">${ctl.pause_all ? "▶ Resume All" : "⏸ Pause All"}</button>
+      <button class="btn ${ctl.manual_mode ? "good" : "ghost"}" data-ctl="manual_mode">Manual Mode${ctl.manual_mode ? " ✓" : ""}</button>
+      <button class="btn ${ctl.stop_posting ? "good" : "ghost"}" data-ctl="stop_posting">Stop Posting${ctl.stop_posting ? " ✓" : ""}</button>
+      <button class="btn ${ctl.stop_interactions ? "good" : "ghost"}" data-ctl="stop_interactions">Stop Interactions${ctl.stop_interactions ? " ✓" : ""}</button>
+      <button class="btn ghost" id="clearToday">Clear Today’s Queue</button>
+      <button class="btn ${fo.active ? "good" : ""}" id="founderOverride">${fo.active ? "Founder Override ✓ (release)" : "🛑 Founder Override"}</button>
+    </div>
+    ${fo.active ? `<div class="muted">Founder Override active${fo.at ? ` since ${esc(fo.at)}` : ""}. The AI drafts on request only — Stephen is in direct control.</div>` : ""}
+
+    <details style="margin-top:16px"><summary class="muted">The human rules (always on)</summary>
+      <div class="row" style="gap:18px;align-items:flex-start">
+        <div><strong>Always</strong><ul class="muted" style="padding-left:18px">${modes.human_rules.always.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>
+        <div><strong>Never</strong><ul class="muted" style="padding-left:18px">${modes.human_rules.never.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>
+      </div>
+      <div class="muted" style="margin-top:8px">${esc(modes.final_principle)}</div>
+    </details>`;
+
+  const modeSel = $("#modeSel", root);
+  for (const mode of modes.modes) {
+    const b = el(`<button class="btn ${mode.key === m.key ? "" : "ghost"}">L${mode.level} · ${esc(mode.name.replace(" Mode", ""))}</button>`);
+    b.onclick = async () => {
+      await api("/v1/operating/mode", { method: "POST", body: JSON.stringify({ mode: mode.key }) });
+      toast(`Mode → ${mode.name}`); views.copilot(root);
+    };
+    modeSel.appendChild(b);
+  }
+  root.querySelectorAll("[data-ctl]").forEach((b) => {
+    b.onclick = async () => {
+      const c = b.dataset.ctl;
+      const value = !ctl[c];
+      await api("/v1/operating/control", { method: "POST", body: JSON.stringify({ control: c, value }) });
+      toast(`${c.replace(/_/g, " ")} ${value ? "on" : "off"}`); views.copilot(root);
+    };
+  });
+  $("#clearToday", root).onclick = async () => {
+    if (!confirm("Clear today’s generated drafts?")) return;
+    const r = await api("/v1/operating/clear-today", { method: "POST" });
+    toast(`Cleared ${r.cleared} draft(s)`); views.copilot(root);
+  };
+  $("#founderOverride", root).onclick = async () => {
+    const active = !fo.active;
+    await api("/v1/operating/founder-override", { method: "POST", body: JSON.stringify({ active }) });
+    toast(active ? "Founder Override ON — Stephen in control" : "Founder Override released"); views.copilot(root);
+  };
+};
+
+// --- Interaction Centre: AI drafts, Stephen sends --------------------------
+const INTERACTION_LABELS = {
+  comment: "💬 Comment", mention: "🔖 Mention", story_reply: "📲 Story reply",
+  community_question: "❓ Community Q", creator_post: "🎥 Creator post",
+  collaboration: "🤝 Collaboration", urgent_message: "🚨 Urgent",
+};
+
+views.interaction = async (root) => {
+  root.innerHTML = `
+    <div class="row">
+      <h2>💬 Interaction Centre</h2>
+      <span class="badge">AI drafts · Stephen sends</span>
+      <div class="spacer"></div>
+      <select id="iFilter" class="btn ghost">
+        <option value="">Needs attention</option>
+        <option value="needs_reply">Needs reply</option>
+        <option value="drafted">Drafted</option>
+        <option value="sent">Sent</option>
+        <option value="dismissed">Dismissed</option>
+      </select>
+      <button class="btn ghost" id="iSeed">Load demo</button>
+    </div>
+    <div class="muted">Comments, mentions, story replies, community questions, creators worth engaging, collaborations and urgent messages. Replies are polite, supportive, on-mission — and only ever sent by Stephen.</div>
+    <div class="row" id="iCounts" style="flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+    <div class="cards" id="iList" style="margin-top:10px"></div>`;
+  $("#iSeed", root).onclick = async () => { const r = await api("/v1/interaction/seed", { method: "POST" }); toast(`Loaded ${r.seeded} interactions`); renderInteractions(root); };
+  $("#iFilter", root).onchange = () => renderInteractions(root);
+  await renderInteractions(root);
+};
+
+async function renderInteractions(root) {
+  const f = $("#iFilter", root).value;
+  const data = await api("/v1/interaction" + (f ? `?status=${f}` : ""));
+  const c = data.counts || {};
+  $("#iCounts", root).innerHTML =
+    `<span class="badge ${c.needs_attention ? "warn" : "good"}">${c.needs_attention || 0} need attention</span>` +
+    Object.entries(c.by_kind || {}).map(([k, n]) => `<span class="badge">${esc(INTERACTION_LABELS[k] || k)}: ${n}</span>`).join("");
+  const list = $("#iList", root);
+  list.innerHTML = "";
+  const shown = f ? data.items : data.items.filter((i) => i.status === "needs_reply" || i.status === "drafted");
+  if (!shown.length) { list.innerHTML = `<div class="muted">Nothing here. Use “Load demo” to populate, or connect your sources.</div>`; return; }
+  for (const it of shown) list.appendChild(interactionCard(it, root));
+}
+
+function interactionCard(it, root) {
+  const pr = it.priority === "urgent" ? "bad" : it.priority === "high" ? "warn" : "";
+  const card = el(`<div class="card">
+    <div class="meta">
+      <span class="badge pillar">${esc(INTERACTION_LABELS[it.kind] || it.kind)}</span>
+      <span class="badge">${esc(it.platform)}</span>
+      <span class="badge">${esc(it.author || "")}</span>
+      ${pr ? `<span class="badge ${pr}">${esc(it.priority)}</span>` : ""}
+      <span class="badge">${esc(it.status)}</span>
+    </div>
+    <div class="body"><strong>${esc(it.summary)}</strong></div>
+    <div class="muted">${esc(it.context || "")}</div>
+    ${it.suggested_reply ? `<div class="card" style="margin-top:6px"><div class="meta"><span class="badge ${it.reply_approved ? "good" : "warn"}">${it.reply_approved ? "draft (compliant)" : "draft (review)"}</span></div><div class="body">${esc(it.suggested_reply)}</div></div>` : ""}
+    <div class="actions">
+      <button class="btn ghost" data-a="draft">${it.suggested_reply ? "Redraft" : "Draft reply"}</button>
+      ${it.suggested_reply ? `<button class="btn ghost" data-a="edit">Edit</button>` : ""}
+      ${it.suggested_reply ? `<button class="btn good" data-a="sent">I’ve sent it</button>` : ""}
+      <button class="btn ghost" data-a="dismiss">Dismiss</button>
+    </div></div>`);
+  card.querySelectorAll("[data-a]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        if (b.dataset.a === "edit") {
+          const text = prompt("Edit reply (Stephen sends it):", it.suggested_reply);
+          if (text === null) return;
+          await api(`/v1/interaction/${it.id}/edit`, { method: "POST", body: JSON.stringify({ text }) });
+          toast("Reply edited");
+        } else {
+          await api(`/v1/interaction/${it.id}/${b.dataset.a}`, { method: "POST" });
+          toast(b.dataset.a === "sent" ? "Marked as sent by Stephen" : b.dataset.a === "draft" ? "AI drafted a reply" : "Dismissed");
+        }
+        renderInteractions(root);
+      } catch (e) { toast("Failed: " + e.message); }
+    };
+  });
+  return card;
+}
+
 // --- 5090 Studio: local, offline content generation ------------------------
 const studioSelected = new Set();
 
@@ -1209,6 +1386,6 @@ async function show(name, seed) {
 $("#tabs").addEventListener("click", (e) => { if (e.target.dataset.view) show(e.target.dataset.view); });
 
 refreshHealth();
-show((location.hash || "#studio").slice(1) in views ? location.hash.slice(1) : "studio");
+show((location.hash || "#copilot").slice(1) in views ? location.hash.slice(1) : "copilot");
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
