@@ -7,6 +7,7 @@ import {
   get,
   loadSettings,
   log,
+  recordWorkerEvent,
   refreshAuth,
   refreshWorker,
   startPolling,
@@ -19,7 +20,7 @@ import { sidebar } from "./ui/nav";
 import { roleSelector } from "./ui/roleSelector";
 import { settingsView } from "./ui/settings";
 import { topbar } from "./ui/topbar";
-import { VIEWS } from "./ui/views";
+import { applyLiveProgress, VIEWS } from "./ui/views";
 
 const root = document.getElementById("app")!;
 let activeView = "dashboard";
@@ -100,11 +101,19 @@ async function boot(): Promise<void> {
   renderShell();
 }
 
-// Worker events stream from Rust → log + status refresh.
+// Worker events stream from Rust → log, live render progress, status refresh.
 void listen<WorkerEvent>("worker://event", (ev) => {
   const level = ev.kind === "failed" || ev.kind === "error" ? "error" : "info";
   const pct = ev.progress ? ` (${Math.round(ev.progress * 100)}%)` : "";
   log(level, `worker · ${ev.message}${pct}`);
+  recordWorkerEvent(ev);
+  // Update the on-screen progress bar in place; if the job isn't drawn yet (newly
+  // claimed) or it just terminated, do a fuller refresh of the active board.
+  const applied = applyLiveProgress(ev);
+  const terminal = ["completed", "failed", "stopped"].includes(ev.kind);
+  if ((!applied || terminal) && (activeView === "render-jobs" || activeView === "worker-status")) {
+    renderShell();
+  }
   void refreshWorker();
 });
 

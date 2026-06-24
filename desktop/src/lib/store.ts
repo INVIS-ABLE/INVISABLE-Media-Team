@@ -7,6 +7,7 @@ import type {
   ConnectionReport,
   Settings,
   SystemStatus,
+  WorkerEvent,
   WorkerStatus,
 } from "./types";
 
@@ -56,6 +57,25 @@ export function log(level: LogEntry["level"], message: string): void {
   state.logs.unshift({ ts: new Date().toISOString(), level, message });
   state.logs = state.logs.slice(0, 300);
   notify();
+}
+
+// Latest live progress per render job, fed by the worker event stream so the
+// Render Jobs board moves in real time (not just on the 5s server poll).
+export interface LiveJob {
+  progress: number;
+  message: string;
+  kind: string;
+}
+export const liveJobProgress = new Map<string, LiveJob>();
+
+export function recordWorkerEvent(ev: WorkerEvent): void {
+  if (ev.job_id) {
+    liveJobProgress.set(ev.job_id, {
+      progress: ev.progress,
+      message: ev.message,
+      kind: ev.kind,
+    });
+  }
 }
 
 // --- Settings ---------------------------------------------------------------

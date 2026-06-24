@@ -2,9 +2,9 @@
 // server, then re-renders in place. Manual-intervention buttons are wired to actions.
 
 import { clear, el, fmt } from "../lib/dom";
-import { api, get, startWorker, stopWorker } from "../lib/store";
+import { api, get, liveJobProgress, startWorker, stopWorker } from "../lib/store";
 import { pickFile } from "../lib/tauri";
-import type { SystemStatus } from "../lib/types";
+import type { SystemStatus, WorkerEvent } from "../lib/types";
 import * as act from "./actions";
 import { openPostEditor } from "./editor";
 
@@ -467,6 +467,19 @@ export function warchestView(): HTMLElement {
 
 // --- Render jobs ------------------------------------------------------------
 
+/** Update a job's progress bar + activity line in place from a worker event,
+ *  without re-rendering the whole board (no flicker). A new job that isn't on
+ *  screen yet returns false so the caller can trigger a fuller refresh. */
+export function applyLiveProgress(ev: WorkerEvent): boolean {
+  if (!ev.job_id) return true;
+  const bar = document.querySelector<HTMLElement>(`[data-job-bar="${ev.job_id}"]`);
+  const msg = document.querySelector<HTMLElement>(`[data-job-msg="${ev.job_id}"]`);
+  if (!bar && !msg) return false;
+  if (bar) bar.style.width = `${Math.round((ev.progress ?? 0) * 100)}%`;
+  if (msg) msg.textContent = ev.message;
+  return true;
+}
+
 export function renderJobsView(): HTMLElement {
   const host = el("div", {});
   const render = () =>
@@ -474,8 +487,12 @@ export function renderJobsView(): HTMLElement {
       const r = await api<{ jobs: Job[]; counts: Record<string, number> }>("GET", "/api/jobs");
       const jobs = r.ok ? r.body.jobs ?? [] : [];
       const refresh = () => reload(host, render);
-      const card = (j: Job) =>
-        el(
+      const card = (j: Job) => {
+        // Overlay live worker progress (newer than the last server poll) when present.
+        const live = liveJobProgress.get(j.id);
+        const progress = Math.max(j.progress ?? 0, live?.progress ?? 0);
+        const activity = live?.message ?? "";
+        return el(
           "article",
           { class: "card" },
           el(
@@ -493,8 +510,13 @@ export function renderJobsView(): HTMLElement {
           el(
             "div",
             { class: "progress" },
-            el("div", { class: "progress__bar", style: `width:${Math.round((j.progress ?? 0) * 100)}%` }),
+            el("div", {
+              class: "progress__bar",
+              "data-job-bar": j.id,
+              style: `width:${Math.round(progress * 100)}%`,
+            }),
           ),
+          el("div", { class: "card__activity", "data-job-msg": j.id }, activity),
           j.error ? el("p", { class: "error-box" }, j.error) : "",
           el(
             "div",
@@ -506,6 +528,7 @@ export function renderJobsView(): HTMLElement {
               : el("span", {}),
           ),
         );
+      };
       return section(
         `Render jobs (${jobs.length})`,
         el(
