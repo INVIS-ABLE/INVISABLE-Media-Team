@@ -63,6 +63,7 @@ from invisable_os.services import (
     finish_post,
     format_leaderboard,
     gather_topics,
+    humanise,
     launch_campaign,
     newsroom_brief,
     post_attribution,
@@ -234,6 +235,16 @@ def evaluate(req: EvaluationRequest) -> dict:
         platform=req.platform,
         content_format=req.content_format,
     )
+
+
+class HumaniseRequest(BaseModel):
+    text: str
+
+
+@router.post("/v1/humanise")
+def humanise_text(req: HumaniseRequest) -> dict:
+    """Humanisation layer: strip AI tells and score how human the copy reads."""
+    return humanise(req.text)
 
 
 @router.post("/v1/harvest")
@@ -1145,3 +1156,153 @@ def studio_export() -> dict:
     from invisable_os.studio import get_studio_store
 
     return get_studio_store().export_approved()
+
+
+# --- Human-led co-pilot: operating modes + emergency controls ---------------
+#
+# Stephen stays editor-in-chief. These endpoints expose the posting/interaction
+# intensity modes and the emergency controls — the app supports, it never auto-acts.
+
+
+class SetModeRequest(BaseModel):
+    mode: str
+
+
+class ControlRequest(BaseModel):
+    control: str
+    value: bool = True
+
+
+class FounderOverrideRequest(BaseModel):
+    active: bool = True
+    note: str = ""
+
+
+@router.get("/v1/operating/modes")
+def operating_modes() -> dict:
+    """The four intensity levels, the global human rules, and the comment-style rules."""
+    from invisable_os.operating import COMMENT_STYLE_RULES, GLOBAL_HUMAN_RULES, MODE_POLICIES
+    from invisable_os.operating.modes import FINAL_PRINCIPLE
+
+    return {
+        "modes": [p.summary() for p in MODE_POLICIES.values()],
+        "human_rules": GLOBAL_HUMAN_RULES,
+        "comment_style": COMMENT_STYLE_RULES,
+        "final_principle": FINAL_PRINCIPLE,
+    }
+
+
+@router.get("/v1/operating/status")
+def operating_status() -> dict:
+    """The Co-Pilot snapshot: allowances, pending work, recommended actions, controls."""
+    from invisable_os.operating import today_status
+
+    return today_status()
+
+
+@router.post("/v1/operating/mode")
+def operating_set_mode(req: SetModeRequest) -> dict:
+    from invisable_os.operating import set_mode
+
+    try:
+        set_mode(req.mode)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    return {"ok": True, "status": operating_status()}
+
+
+@router.post("/v1/operating/control")
+def operating_control(req: ControlRequest) -> dict:
+    """Pull or release an emergency control (pause_all/manual_mode/stop_*)."""
+    from invisable_os.operating import set_control
+
+    try:
+        set_control(req.control, req.value)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    return {"ok": True, "status": operating_status()}
+
+
+@router.post("/v1/operating/founder-override")
+def operating_founder_override(req: FounderOverrideRequest) -> dict:
+    from invisable_os.operating import founder_override
+
+    founder_override(active=req.active, note=req.note)
+    return {"ok": True, "status": operating_status()}
+
+
+@router.post("/v1/operating/clear-today")
+def operating_clear_today() -> dict:
+    """Clear today's generated drafts."""
+    from invisable_os.operating import clear_today_queue
+
+    result = clear_today_queue()
+    return {"ok": True, **result, "status": operating_status()}
+
+
+# --- Interaction Centre: AI drafts, Stephen sends ---------------------------
+
+
+class InteractionEditRequest(BaseModel):
+    text: str
+
+
+@router.get("/v1/interaction")
+def interaction_list(status: str | None = None, kind: str | None = None) -> dict:
+    """Comments, mentions, story replies, questions, creator posts, collabs, urgent."""
+    from invisable_os.operating import get_interaction_centre
+
+    centre = get_interaction_centre()
+    items = centre.list_items(status=status, kind=kind)
+    return {"counts": centre.counts(), "items": [i.model_dump(mode="json") for i in items]}
+
+
+@router.post("/v1/interaction/seed")
+def interaction_seed() -> dict:
+    """Seed a realistic, compliant set of interactions (for demos)."""
+    from invisable_os.operating import get_interaction_centre
+
+    seeded = get_interaction_centre().seed_demo()
+    return {"seeded": len(seeded)}
+
+
+@router.post("/v1/interaction/{item_id}/draft")
+def interaction_draft(item_id: str) -> dict:
+    """AI drafts a polite, compliant reply for Stephen to review and send."""
+    from invisable_os.operating import get_interaction_centre
+
+    item = get_interaction_centre().draft_reply(item_id)
+    if item is None:
+        return {"error": "not found"}
+    return {"ok": True, "item": item.model_dump(mode="json")}
+
+
+@router.post("/v1/interaction/{item_id}/edit")
+def interaction_edit(item_id: str, req: InteractionEditRequest) -> dict:
+    from invisable_os.operating import get_interaction_centre
+
+    item = get_interaction_centre().edit_reply(item_id, req.text)
+    if item is None:
+        return {"error": "not found"}
+    return {"ok": True, "item": item.model_dump(mode="json")}
+
+
+@router.post("/v1/interaction/{item_id}/sent")
+def interaction_sent(item_id: str) -> dict:
+    """Stephen sent the reply himself — record it (the app never sends for him)."""
+    from invisable_os.operating import get_interaction_centre
+
+    item = get_interaction_centre().mark_sent(item_id)
+    if item is None:
+        return {"error": "not found"}
+    return {"ok": True, "item": item.model_dump(mode="json")}
+
+
+@router.post("/v1/interaction/{item_id}/dismiss")
+def interaction_dismiss(item_id: str) -> dict:
+    from invisable_os.operating import get_interaction_centre
+
+    item = get_interaction_centre().dismiss(item_id)
+    if item is None:
+        return {"error": "not found"}
+    return {"ok": True, "item": item.model_dump(mode="json")}
