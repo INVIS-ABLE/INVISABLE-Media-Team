@@ -23,6 +23,7 @@ from invisable_os.engines import (
 from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
+from invisable_os.guardrails.model_licensing import MODEL_LICENCES, licence_check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
 from invisable_os.media.safe_area import Surface, VisualLayoutAgent, get_template
 from invisable_os.media.video_qc import RegionModel, VideoQualityGate, VideoSpec
@@ -425,6 +426,33 @@ def place_caption(req: PlaceCaptionRequest) -> dict:
 def video_qc(spec: VideoSpec) -> dict:
     """Run the full pre-approval video quality gate over a structured clip spec."""
     return VideoQualityGate().check(spec).summary()
+
+
+# --- Generation-model licensing ---------------------------------------------
+
+
+class LicenceCheckRequest(BaseModel):
+    models: list[str]
+    commercial: bool = True
+
+
+@router.get("/v1/licensing/models")
+def list_model_licences() -> dict:
+    """The generation/detector models known to the licence gate."""
+    return {
+        "count": len(MODEL_LICENCES),
+        "models": [
+            {"name": m.name, "licence": m.licence, "commercial": m.commercial,
+             "kind": m.kind, "verify": m.verify, "note": m.note}
+            for m in MODEL_LICENCES
+        ],
+    }
+
+
+@router.post("/v1/licensing/check")
+def check_model_licences(req: LicenceCheckRequest) -> dict:
+    """Gate a list of generation/detector models for commercial-use licence."""
+    return licence_check(req.models, commercial=req.commercial).model_dump()
 
 
 def _candidate_from(req: IdeaRequest) -> ContentCandidate:
