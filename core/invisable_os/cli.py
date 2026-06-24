@@ -15,6 +15,7 @@
     invisable scan <mode>       # run a Remix scanner (e.g. scan_tool_theft)
     invisable remix <mode>      # run a Remix create mode (e.g. create_parody --topic ...)
     invisable seed-popculture   # seed the pop-culture & meme index
+    invisable doctor            # run the whole pipeline once and check it all works
 """
 
 from __future__ import annotations
@@ -22,6 +23,22 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+
+
+def _doctor(_args) -> int:
+    """Run the full pipeline once and print a green/red per-stage report."""
+    from invisable_os.services import run_self_check
+    from invisable_os.store import init_db
+
+    init_db()
+    report = run_self_check()
+    print("INVISABLE OS — self-check\n")
+    for s in report.stages:
+        mark = "✓" if s.ok else "✗"
+        print(f"  {mark} {s.name:16} {s.detail}")
+    print(f"\n{report.as_dict()['passed']}/{report.as_dict()['total']} stages OK — "
+          + ("ALL SYSTEMS GO ✅" if report.ok else "NEEDS ATTENTION ❌"))
+    return 0 if report.ok else 1
 
 
 def _migrate(_args) -> int:
@@ -351,6 +368,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "seed-popculture", help="seed the pop-culture & meme index"
     ).set_defaults(func=_seed_popculture)
+
+    sub.add_parser(
+        "doctor", help="run the whole pipeline once and report that everything works"
+    ).set_defaults(func=_doctor)
 
     args = parser.parse_args(argv)
     return args.func(args)
