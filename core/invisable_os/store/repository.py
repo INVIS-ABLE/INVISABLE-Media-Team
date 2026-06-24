@@ -105,6 +105,34 @@ class Repository:
                 setattr(row, k, v)
             return row.as_dict()
 
+    def update_queue_candidate(
+        self,
+        item_id: str,
+        *,
+        candidate_patch: dict | None = None,
+        top_level: dict | None = None,
+    ) -> dict | None:
+        """Patch a queued item's candidate JSON (caption/hook/hashtags/etc.).
+
+        This backs the manual content edits — Edit Caption / Edit Hashtags / Replace
+        Media — so Stephen can override any generated post before it goes out. The
+        candidate column is reassigned (not mutated in place) so the JSON change is
+        flushed on SQLite and Postgres alike.
+        """
+        with session_scope() as s:
+            row = s.get(QueueItemRow, item_id)
+            if row is None:
+                return None
+            if candidate_patch:
+                candidate = dict(row.candidate or {})
+                candidate.update(candidate_patch)
+                row.candidate = candidate
+            if top_level:
+                for k, v in top_level.items():
+                    if hasattr(row, k):
+                        setattr(row, k, v)
+            return row.as_dict()
+
     def counts_by_status(self) -> dict[str, int]:
         with session_scope() as s:
             out: dict[str, int] = {}

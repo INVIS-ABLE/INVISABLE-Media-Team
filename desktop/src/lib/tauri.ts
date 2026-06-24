@@ -41,6 +41,24 @@ export async function listen<T>(
   return l(event, (e) => handler(e.payload as T));
 }
 
+/** Open a native file picker and return the chosen absolute path (or null). */
+export async function pickFile(
+  title = "Choose a file",
+): Promise<string | null> {
+  if (!isTauri()) {
+    // Browser dev: prompt for a path so the flow is still exercisable.
+    const v = window.prompt(`${title} — enter a file path`);
+    return v && v.trim() ? v.trim() : null;
+  }
+  try {
+    const mod = await import("@tauri-apps/plugin-dialog");
+    const selected = await mod.open({ multiple: false, directory: false, title });
+    return typeof selected === "string" ? selected : null;
+  } catch {
+    return null;
+  }
+}
+
 function browserStub<T>(cmd: string): Promise<T> {
   const stubs: Record<string, unknown> = {
     get_settings: {

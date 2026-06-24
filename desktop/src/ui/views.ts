@@ -3,8 +3,10 @@
 
 import { clear, el, fmt } from "../lib/dom";
 import { api, get, startWorker, stopWorker } from "../lib/store";
+import { pickFile } from "../lib/tauri";
 import type { SystemStatus } from "../lib/types";
 import * as act from "./actions";
+import { openPostEditor } from "./editor";
 
 interface QueueItem {
   id: string;
@@ -105,7 +107,11 @@ function postCard(it: QueueItem, refresh: () => void): HTMLElement {
   if (status === "rejected") {
     actions.push(btn("Recycle Post", "btn--ghost", () => void after(act.recyclePost(it.id))));
   }
-  // Always available: send a render job to the 5090 for this item.
+  // Always available: open the editor (Edit Caption/Hashtags/Replace Media) and
+  // send a render job to the 5090 for this item.
+  actions.push(
+    btn("Edit", "btn--info", () => openPostEditor(it.id, refresh)),
+  );
   actions.push(
     btn("Send To 5090", "btn--ghost", () =>
       void after(act.sendJobTo5090("ffmpeg_render", titleOf(it), it.id)),
@@ -483,6 +489,11 @@ export function workerStatusView(): HTMLElement {
           running
             ? btn("Stop Local Worker", "btn--bad", () => void stopWorker().then(() => reload(host, render)))
             : btn("Start Local Worker", "btn--ok", () => void startWorker().then(() => reload(host, render))),
+          btn("Upload Finished Asset", "btn--info", () => {
+            void pickFile("Choose a finished asset to upload").then((p) => {
+              if (p) void act.uploadFile(p, { kind: "render" });
+            });
+          }),
           btn("Refresh", "btn--ghost", () => reload(host, render)),
         ),
       ),

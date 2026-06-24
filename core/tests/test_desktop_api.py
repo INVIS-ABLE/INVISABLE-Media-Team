@@ -152,3 +152,66 @@ def test_post_approve_and_reject_transitions():
 def test_post_action_on_missing_id_is_404():
     r = client.post("/api/posts/does-not-exist/approve")
     assert r.status_code == 404
+
+
+def _seed_post() -> str:
+    return get_repository().enqueue(
+        {
+            "candidate_id": "c-edit",
+            "candidate": {
+                "brief": "x",
+                "body": "original caption",
+                "hook": "old hook",
+                "platform": "instagram",
+            },
+            "status": "pending_review",
+            "platform": "instagram",
+        }
+    )
+
+
+def test_post_get_detail_returns_candidate_and_media():
+    item_id = _seed_post()
+    r = client.get(f"/api/posts/{item_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["post"]["id"] == item_id
+    assert body["post"]["candidate"]["body"] == "original caption"
+    assert body["media"] == []
+
+
+def test_post_edit_caption_and_hashtags():
+    item_id = _seed_post()
+    r = client.post(
+        f"/api/posts/{item_id}/edit",
+        json={"caption": "new caption", "hashtags": ["#invisible", "#illness"]},
+    )
+    assert r.status_code == 200
+    cand = r.json()["post"]["candidate"]
+    assert cand["body"] == "new caption"
+    assert cand["hashtags"] == ["#invisible", "#illness"]
+    # Untouched fields survive the patch.
+    assert cand["hook"] == "old hook"
+
+
+def test_post_edit_requires_a_field():
+    item_id = _seed_post()
+    r = client.post(f"/api/posts/{item_id}/edit", json={})
+    assert r.status_code == 422
+
+
+def test_post_edit_missing_id_is_404():
+    r = client.post("/api/posts/nope/edit", json={"caption": "x"})
+    assert r.status_code == 404
+
+
+def test_post_replace_media_records_and_points_at_asset():
+    item_id = _seed_post()
+    r = client.post(
+        f"/api/posts/{item_id}/replace-media",
+        json={"media_path": "/srv/uploads/final.mp4", "kind": "primary"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["post"]["candidate"]["primary_media"] == "/srv/uploads/final.mp4"
+    assert any(m["path"] == "/srv/uploads/final.mp4" for m in body["media"])

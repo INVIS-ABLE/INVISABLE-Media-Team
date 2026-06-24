@@ -370,6 +370,73 @@ async def api_asset_upload(
     return {"ok": True, "path": asset_path, "bytes": size, "filename": safe_name}
 
 
+# --- Posts: detail + manual content edits -----------------------------------
+
+
+@api_router.get("/posts/{post_id}", dependencies=[Depends(require_token)])
+def api_post_get(post_id: str) -> dict:
+    """Full post detail — candidate text + its media — for the editor view."""
+    repo = get_repository()
+    item = repo.get_queue_item(post_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"post '{post_id}' not found")
+    return {"post": item, "media": repo.list_media(post_id)}
+
+
+class PostEditRequest(BaseModel):
+    """Manual edits to a post's content (any field omitted is left untouched)."""
+
+    caption: str | None = None  # -> candidate.body (the main caption/script)
+    hook: str | None = None
+    call_to_action: str | None = None
+    hashtags: list[str] | None = None
+
+
+@api_router.post("/posts/{post_id}/edit", dependencies=[Depends(require_token)])
+def api_post_edit(post_id: str, req: PostEditRequest) -> dict:
+    """Edit Caption / Edit Hashtags (and hook/CTA) — Stephen's manual override."""
+    patch: dict = {}
+    if req.caption is not None:
+        patch["body"] = req.caption
+    if req.hook is not None:
+        patch["hook"] = req.hook
+    if req.call_to_action is not None:
+        patch["call_to_action"] = req.call_to_action
+    if req.hashtags is not None:
+        patch["hashtags"] = req.hashtags
+    if not patch:
+        raise HTTPException(status_code=422, detail="no editable fields provided")
+    item = get_repository().update_queue_candidate(post_id, candidate_patch=patch)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"post '{post_id}' not found")
+    return {"ok": True, "post": item}
+
+
+class ReplaceMediaRequest(BaseModel):
+    media_path: str
+    kind: str = "primary"
+
+
+@api_router.post("/posts/{post_id}/replace-media", dependencies=[Depends(require_token)])
+def api_post_replace_media(post_id: str, req: ReplaceMediaRequest) -> dict:
+    """Replace Media — point a post at a different (already-uploaded) asset path."""
+    repo = get_repository()
+    item = repo.get_queue_item(post_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"post '{post_id}' not found")
+    repo.add_media_asset(
+        post_id,
+        kind=req.kind,
+        spec="replacement",
+        path=req.media_path,
+        backend="manual",
+    )
+    updated = repo.update_queue_candidate(
+        post_id, candidate_patch={"primary_media": req.media_path}
+    )
+    return {"ok": True, "post": updated, "media": repo.list_media(post_id)}
+
+
 # --- Posts: manual overrides ------------------------------------------------
 
 

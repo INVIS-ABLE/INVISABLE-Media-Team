@@ -1,7 +1,8 @@
 // Manual-intervention actions — every button maps to a server route. The server is
 // the source of truth; these only trigger it and log the outcome.
 
-import { api, log, refreshStatus } from "../lib/store";
+import { api, apiBase, log, refreshStatus } from "../lib/store";
+import { invoke } from "../lib/tauri";
 
 async function run(label: string, fn: () => Promise<void>): Promise<void> {
   log("action", label);
@@ -121,6 +122,63 @@ export const regeneratePost = (id: string, brief: string) =>
       }),
     ),
   );
+
+// --- Post content edits (Edit Caption / Edit Hashtags / Replace Media) -------
+
+export interface PostEdit {
+  caption?: string;
+  hook?: string;
+  call_to_action?: string;
+  hashtags?: string[];
+}
+
+export const editPost = (id: string, fields: PostEdit) =>
+  run("Edit Post", async () =>
+    ok("Edit post", await api("POST", `/api/posts/${id}/edit`, fields)),
+  );
+
+export const editCaption = (id: string, caption: string) =>
+  editPost(id, { caption });
+
+export const editHashtags = (id: string, hashtags: string[]) =>
+  editPost(id, { hashtags });
+
+export const replaceMedia = (id: string, mediaPath: string) =>
+  run("Replace Media", async () =>
+    ok(
+      "Replace media",
+      await api("POST", `/api/posts/${id}/replace-media`, { media_path: mediaPath }),
+    ),
+  );
+
+/** Upload a local file to the server and return its server-side path (or null). */
+export async function uploadFile(
+  filePath: string,
+  opts: { jobId?: string; queueItemId?: string; kind?: string } = {},
+): Promise<string | null> {
+  const base = apiBase();
+  if (!base) {
+    log("error", "Upload failed: not connected");
+    return null;
+  }
+  log("action", `Upload Finished Asset · ${filePath}`);
+  const res = await invoke<{ ok: boolean; path?: string; error?: string }>(
+    "upload_asset",
+    {
+      baseUrl: base,
+      filePath,
+      jobId: opts.jobId ?? "",
+      queueItemId: opts.queueItemId ?? "",
+      kind: opts.kind ?? "render",
+    },
+  );
+  if (res.ok && res.path) {
+    log("info", `Uploaded → ${res.path}`);
+    return res.path;
+  }
+  log("error", `Upload failed: ${res.error ?? "unknown error"}`);
+  return null;
+}
 
 // --- Accounts ---------------------------------------------------------------
 
