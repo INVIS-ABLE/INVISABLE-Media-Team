@@ -1070,6 +1070,134 @@ function renderFunnel(node, r) {
     </div>${rows.map(([l, n]) => `<div class="slot"><span class="time" style="width:auto">${n}</span><span>${esc(l)}</span></div>`).join("")}</div>`;
 }
 
+// --- Creative Toolbelt ------------------------------------------------------
+// The visual-polish layer: design, templates, captions, video assembly, memes,
+// effects, the export quality gate, and asset storage. The Quality Checker and
+// Asset Warchest are live; the authoring studios land in following increments,
+// each wired to a backend that degrades to dry-run.
+
+function toolbeltShell(title, lede, plannedTools, backs) {
+  return `<div class="row"><h2>${title}</h2><div class="spacer"></div>
+      <span class="badge">planned</span></div>
+    <div class="muted" style="margin-bottom:12px">${lede}</div>
+    <div class="card"><h3>What this will do</h3><ul>${plannedTools.map((t) => `<li>${t}</li>`).join("")}</ul></div>
+    ${backs ? `<div class="muted" style="margin-top:10px;font-size:.9em">${backs}</div>` : ""}`;
+}
+
+views.designstudio = (root) => {
+  root.innerHTML = toolbeltShell("Design Studio",
+    "A Canva-style in-PWA editor for quote cards, carousels and graphics — drag, type, restyle, export.",
+    ["Embed an open-source editor (Polotno / Open Design — licence reviewed before integration)",
+     "Brand-locked colours, fonts and logo from the Values single source of truth",
+     "Export straight into the approval queue and Asset Warchest",
+     "Optional Canva API as an external integration later"],
+    "Backed by the brand palette in <b>Values</b> and the existing media library.");
+};
+
+views.templates = (root) => {
+  root.innerHTML = toolbeltShell("Template Library",
+    "Reusable, brand-safe templates for Reels, TikToks, quote cards and carousels.",
+    ["Code-defined templates (Remotion-style) rendered deterministically via FFmpeg",
+     "One idea → many sized variants (9:16, 1:1, 4:5) auto-fitted to safe areas",
+     "Every template ships pre-passing the export gate's aspect & safe-zone checks"],
+    "Builds on the existing VideoAssembler and safe-area templates.");
+};
+
+views.captionstudio = (root) => {
+  root.innerHTML = toolbeltShell("Caption Studio",
+    "Word-level captions with punchline timing — the thing that keeps people watching.",
+    ["WhisperX word-level timestamps for tight, readable cues",
+     "Editable styled caption cards; karaoke/pop styling presets",
+     "Feeds the existing caption-timing & caption-accuracy gate checks"],
+    "Backed by the Whisper caption renderer already in the media pipeline.");
+};
+
+views.videobuilder = (root) => {
+  root.innerHTML = toolbeltShell("Video Builder",
+    "Assemble a finished cutdown: visual + voiceover + captions + music, rendered and gated.",
+    ["Timeline of flywheel assets → FFmpeg render (already live via Finish)",
+     "AI b-roll from the generation models (Wan2.1 / HunyuanVideo / LTX / CogVideoX / Mochi) behind the renderer seam",
+     "Every build runs the export gate before it can leave the studio"],
+    "Backed by <code>/v1/media/finish</code> and the renderer/probe seams.");
+};
+
+views.memebuilder = (root) => {
+  root.innerHTML = toolbeltShell("Meme Builder",
+    "On-brand, never-punch-down meme formats with the founder's British, self-deprecating humour.",
+    ["Pop-culture format index → original captions (no copyrighted frames copied)",
+     "Humour-engine guardrails applied before anything renders",
+     "Quick export to quote-card / short-video templates"],
+    "Backed by the Pop Culture index and humour guardrails.");
+};
+
+views.effects = (root) => {
+  root.innerHTML = toolbeltShell("Effects Library",
+    "Tasteful motion, transitions and overlays that lift retention without cluttering the frame.",
+    ["Curated transitions / lower-thirds / zoom presets rendered via FFmpeg filters",
+     "Each effect respects safe areas and the visual-clutter ceiling",
+     "Applied non-destructively in the Video Builder"],
+    "Gated by the export contract's safe-zone and visual-quality checks.");
+};
+
+views.qualitychecker = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Quality Checker</h2><div class="spacer"></div>
+      <span class="badge good">live</span></div>
+    <div class="muted" style="margin-bottom:12px">The export contract: every finished video must clear all of these before it can be exported. Below is the gate running live on two sample clips — a clean one and a deliberately flawed one.</div>
+    <div id="qcsamples"><div class="loading">Running the gate…</div></div>`;
+  const cleanSpec = { platform: "tiktok", surface: "reel", width: 1080, height: 1920, fps: 30, duration_s: 20 };
+  const flawedSpec = {
+    platform: "tiktok", surface: "reel", width: 1080, height: 1080, fps: 18, duration_s: 1.5,
+    sharpness: 0.2,
+    audio: { integrated_lufs: -6, true_peak_db: 0.5, voice_present: true, music_present: true, music_licensed: false, voice_over_music_db: 1 },
+    generation_models: ["flux-dev"], commercial_use: true,
+    regions: [{ kind: "face", box: { x0: 0.1, y0: 0.3, x1: 0.8, y1: 0.5 } }],
+    caption_boxes: [{ x0: 0.12, y0: 0.30, x1: 0.77, y1: 0.45 }],
+  };
+  const dot = (s) => s === "pass" ? "good" : s === "warn" ? "warn" : s === "fail" ? "bad" : "";
+  const card = (label, r) => `<div class="card">
+    <div class="row"><h3 style="margin:0">${label}</h3><div class="spacer"></div>
+      <span class="badge ${r.export_ready ? "good" : "bad"}">${r.export_ready ? "✅ export ready" : "⛔ blocked"}</span></div>
+    ${(r.categories || []).map((c) => `<div class="slot">
+      <span class="badge ${dot(c.status)}" style="width:auto">${c.status}</span>
+      <span>${esc(c.label)}</span>
+      <span class="muted" style="font-size:.82em">${(c.checks || []).filter((k) => k.status !== "pass").map((k) => esc(k.detail)).join(" · ")}</span>
+    </div>`).join("")}</div>`;
+  try {
+    const [clean, flawed] = await Promise.all([
+      api("/v1/export/gate", { method: "POST", body: JSON.stringify(cleanSpec) }),
+      api("/v1/export/gate", { method: "POST", body: JSON.stringify(flawedSpec) }),
+    ]);
+    $("#qcsamples", root).innerHTML = card("Clean clip", clean) + card("Flawed clip", flawed);
+  } catch (e) {
+    $("#qcsamples", root).innerHTML = `<div class="muted">Gate unavailable: ${esc(e.message)}</div>`;
+  }
+};
+
+views.assetwarchest = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Asset Warchest</h2><div class="spacer"></div>
+      <button class="btn ghost" id="refresh">Refresh</button></div>
+    <div class="muted" style="margin-bottom:12px">Every rendered asset across the studio — searchable, reusable, and (when configured) archived to ResourceSpace with consent/rights tracked.</div>
+    <div id="awlist"><div class="loading">Loading…</div></div>`;
+  $("#refresh", root).onclick = () => views.assetwarchest(root);
+  try {
+    const data = await api("/v1/media");
+    const assets = data.assets || data.items || [];
+    const byKind = {};
+    for (const a of assets) (byKind[a.kind] || (byKind[a.kind] = [])).push(a);
+    $("#awlist", root).innerHTML = Object.keys(byKind).length
+      ? Object.entries(byKind).map(([kind, items]) => `<div class="card">
+          <div class="row"><h3 style="margin:0">${esc(kind)}</h3><div class="spacer"></div>
+            <span class="badge">${items.length}</span></div>
+          ${items.slice(0, 12).map((a) => `<div class="slot">
+            <span class="badge ${a.backend === "dry-run" ? "warn" : "good"}" style="width:auto">${esc(a.backend || "")}</span>
+            <span class="muted" style="font-size:.85em">${esc(a.path || a.spec || "")}</span></div>`).join("")}
+        </div>`).join("")
+      : `<div class="muted">No assets yet — produce or finish a post (Queue) to fill the warchest.</div>`;
+  } catch (e) {
+    $("#awlist", root).innerHTML = `<div class="muted">Library unavailable: ${esc(e.message)}</div>`;
+  }
+};
+
 // --- router ----------------------------------------------------------------
 async function show(name, seed) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === name));

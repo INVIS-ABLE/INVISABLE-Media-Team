@@ -56,17 +56,22 @@ _SURFACE_ASPECT = {
     Surface.STORY: "9:16",
 }
 
-# Regions that must never be covered by a caption/overlay.
-_PROTECTED = {
+# Regions that must never be covered by a caption/overlay. Split so the gate can
+# report "face/object obstruction" and "text overlap" as the two distinct checks the
+# export contract names.
+_PROTECTED_TEXT = {
+    RegionKind.ON_SCREEN_TEXT,
+    RegionKind.IMPORTANT_TEXT,
+}
+_PROTECTED_VISUAL = {
     RegionKind.FACE,
     RegionKind.FOUNDER_FACE,
     RegionKind.COMMUNITY_FACE,
     RegionKind.HAND_TOOL_PRODUCT,
     RegionKind.LOGO,
     RegionKind.SPONSOR_PRODUCT,
-    RegionKind.ON_SCREEN_TEXT,
-    RegionKind.IMPORTANT_TEXT,
 }
+_PROTECTED = _PROTECTED_VISUAL | _PROTECTED_TEXT
 
 
 class CheckStatus(StrEnum):
@@ -395,7 +400,8 @@ class VideoQualityGate:
     def _visual(self, spec: VideoSpec) -> list[QCCheck]:
         out: list[QCCheck] = []
         template = get_template(spec.platform, spec.surface)
-        protected = [r.to_region() for r in spec.regions if r.kind in _PROTECTED]
+        protected_visual = [r.to_region() for r in spec.regions if r.kind in _PROTECTED_VISUAL]
+        protected_text = [r.to_region() for r in spec.regions if r.kind in _PROTECTED_TEXT]
         boxes = [b.to_box() for b in spec.caption_boxes] + [b.to_box() for b in spec.overlays]
 
         if template is None:
@@ -403,26 +409,42 @@ class VideoQualityGate:
                 name="safe_area", status=CheckStatus.WARN,
                 detail=f"no template for {spec.platform.value}/{spec.surface.value}"))
         else:
+            exclusion_names = {z.name for z in template.exclusions}
             obstruction_hits: list[str] = []
+            text_hits: list[str] = []
             edge_hits = 0
             ui_hits: list[str] = []
             for box in boxes:
-                placement = self.layout.check_overlay(template, box, regions=protected)
-                if not placement.ok:
-                    for blocker in placement.blocked_by:
+                # Faces / objects / logos — edge + UI are read from this pass.
+                pv = self.layout.check_overlay(template, box, regions=protected_visual)
+                if not pv.ok:
+                    for blocker in pv.blocked_by:
                         if blocker == "title_safe_edge":
                             edge_hits += 1
-                        elif blocker in {z.name for z in template.exclusions}:
+                        elif blocker in exclusion_names:
                             ui_hits.append(blocker)
                         else:
                             obstruction_hits.append(blocker)
+                # On-screen text — region blockers only (edge/UI already counted).
+                pt = self.layout.check_overlay(template, box, regions=protected_text)
+                if not pt.ok:
+                    for blocker in pt.blocked_by:
+                        if blocker != "title_safe_edge" and blocker not in exclusion_names:
+                            text_hits.append(blocker)
 
-            # No captions covering faces / objects / on-screen text.
+            # No captions covering faces / objects / logos.
             out.append(QCCheck(
                 name="visual_obstruction",
                 status=CheckStatus.FAIL if obstruction_hits else CheckStatus.PASS,
                 detail=("covers " + ", ".join(sorted(set(obstruction_hits)))) if obstruction_hits
-                else "captions/overlays clear of faces, objects and on-screen text",
+                else "captions/overlays clear of faces, objects and logos",
+            ))
+            # No captions overlapping existing on-screen text.
+            out.append(QCCheck(
+                name="text_overlap",
+                status=CheckStatus.FAIL if text_hits else CheckStatus.PASS,
+                detail=("overlaps " + ", ".join(sorted(set(text_hits)))) if text_hits
+                else "captions/overlays clear of on-screen text",
             ))
             # Nothing under the platform UI.
             out.append(QCCheck(
