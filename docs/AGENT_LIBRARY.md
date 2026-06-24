@@ -1,6 +1,6 @@
 # Agent Library
 
-77 specialist agents, organised as a **multi-agent production studio** of seven
+84 specialist agents, organised as a **multi-agent production studio** of seven
 pipeline teams. The **canonical source** is
 [`core/invisable_os/agents/registry.py`](../core/invisable_os/agents/registry.py) —
 it is real, callable code:
@@ -62,6 +62,19 @@ Winning Formula Agent · Founder Recognition Agent · Repurposing Agent ·
 Viral Hook Librarian · Comment-to-Content Agent · Community Story Agent ·
 Relationship CRM Agent · Partner Growth Agent · Press/Media Agent ·
 Press Release Generator · Story Arc Builder
+
+### Remix, Parody & Trend Intelligence (cross-cutting)
+The rights-safe remix studio ([`REMIX_ENGINE.md`](./REMIX_ENGINE.md)). These
+specialists are mapped onto the pipeline teams they serve (research / writing /
+production / quality), so they also appear via `by_team()`.
+
+- **Trend Scanner Agent** *(research)* — Scan public sources and abstract them into clean trend signals — never copies.
+- **Pop Culture Curator** *(research)* — Maintain the film/TV/meme/phrase index with paraphrase-safe versions and copyright risk.
+- **Parody Writer** *(writing)* — Write original, transformative parody inspired by a trend — never a copy, never punching down.
+- **Reaction Script Writer** *(writing)* — Write reaction/commentary scripts and duet/stitch ideas where platform rules allow.
+- **Voiceover Remix Agent** *(writing)* — Voiceover scripts over owned/licensed footage; spec the ElevenLabs + subtitle + FFmpeg job.
+- **Subtitle & Transcription Agent** *(production)* — Whisper/auto-subtitle transcription, hook extraction, burned-in captions.
+- **Rights & Copyright Officer** *(quality)* — Classify every media item's rights status and block reuse of anything reference-only or unlicensed.
 
 ## Using an agent
 

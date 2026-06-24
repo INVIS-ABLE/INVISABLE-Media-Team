@@ -34,6 +34,7 @@ class Department(StrEnum):
     CREATIVE = "creative"
     PR = "pr"
     GOVERNANCE = "governance"
+    REMIX = "remix"
 
 
 class Team(StrEnum):
@@ -345,6 +346,36 @@ AGENT_REGISTRY: tuple[Agent, ...] = (
     _a("Story Arc Builder", Department.CREATIVE, Team.LEARNING, "repurposing arcs",
        "Turn one idea into a TikTok, Reel, carousel, quote card and founder take.",
        "arc", "repurpose", "flywheel"),
+
+    # === REMIX, PARODY & TREND INTELLIGENCE — a rights-safe remix studio ========
+    # Cross-cutting specialists, mapped onto the pipeline teams they serve.
+    _a("Trend Scanner Agent", Department.REMIX, Team.RESEARCH, "trend scanning",
+       "Scan public sources (trends, construction, tool theft, invisible illness, "
+       "autoimmune, pop culture) and abstract them into clean trend signals — never copies.",
+       "scan", "trend", "remix", "scanner", "discovery"),
+    _a("Pop Culture Curator", Department.REMIX, Team.RESEARCH, "pop culture index",
+       "Maintain the film/TV/meme/phrase index with paraphrase-safe versions and "
+       "copyright risk; prefer transformation over exact quotes.",
+       "pop", "culture", "film", "meme", "quote", "reference"),
+    _a("Parody Writer", Department.REMIX, Team.WRITING, "parody",
+       "Write original, transformative parody inspired by a trend — British, "
+       "self-deprecating, never a copy and never punching down.",
+       "parody", "remix", "trend", "skit", "funny"),
+    _a("Reaction Script Writer", Department.REMIX, Team.WRITING, "reactions",
+       "Write reaction/commentary scripts and duet/stitch ideas where platform rules allow.",
+       "reaction", "duet", "stitch", "commentary"),
+    _a("Voiceover Remix Agent", Department.REMIX, Team.WRITING, "voiceover remix",
+       "Write voiceover scripts to lay over owned/licensed footage; spec the "
+       "ElevenLabs + subtitle + FFmpeg job. Never over reference-only material.",
+       "voiceover", "remix", "ffmpeg", "subtitle", "elevenlabs"),
+    _a("Subtitle & Transcription Agent", Department.REMIX, Team.PRODUCTION, "transcription",
+       "Use Whisper/auto-subtitle to transcribe permitted clips, extract hooks, and "
+       "generate burned-in captions for vertical video.",
+       "whisper", "subtitle", "transcribe", "caption", "hook"),
+    _a("Rights & Copyright Officer", Department.REMIX, Team.QUALITY, "rights gating",
+       "Classify every media item's rights status and block reuse of anything that "
+       "is reference-only or not licensed/owned/CC/public-domain/consented.",
+       "rights", "copyright", "licence", "reference", "owned"),
 )
 
 

@@ -97,8 +97,12 @@ honest state of each piece:
 - ✅ Docs: [`GENERATION.md`](GENERATION.md).
 
 ## Next (clearly scoped extensions)
-- ⏳ **Real media rendering** — wire the ComfyUI graph submissions + ElevenLabs/
-  Whisper calls behind the now-stubbed renderers; OpenCut assembly; ResourceSpace library.
+- ✅ **Real media rendering** — ComfyUI (submit → poll → download), ElevenLabs TTS,
+  and a real SRT caption writer behind the renderers, with per-asset dry-run
+  fallback. Live when a backend is configured. Tested with mocked transports. See
+  [`MEDIA.md`](MEDIA.md).
+- ⏳ **Video assembly** — OpenCut timeline assembly (image + voice + captions →
+  finished cutdown); ResourceSpace asset library sync.
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
 - ✅ **PWA front-end** — installable dashboard (`core/invisable_os/web/`) served at
   `/app`: Today / Queue / Calendar / Media / Agents / Values, wired to the API.
