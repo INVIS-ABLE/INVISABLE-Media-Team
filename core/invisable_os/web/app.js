@@ -37,6 +37,161 @@ async function refreshHealth() {
 // --- views -----------------------------------------------------------------
 const views = {};
 
+// --- 5090 Studio: local, offline content generation ------------------------
+const studioSelected = new Set();
+
+views.studio = async (root) => {
+  root.innerHTML = `
+    <div class="row">
+      <h2>🎬 5090 Studio</h2>
+      <span class="badge">offline · local</span>
+      <div class="spacer"></div>
+      <span class="muted" id="studioCounts"></span>
+    </div>
+    <div class="muted">Generate strong, reviewable, exportable content on this machine — no server, no PWA, no social connection required.</div>
+    <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">
+      <button class="btn" data-gen="daily20">Generate 20 Posts</button>
+      <button class="btn ghost" data-gen="humour">Generate Humour Batch</button>
+      <button class="btn ghost" data-gen="awareness">Generate Awareness Batch</button>
+      <button class="btn ghost" data-gen="founder">Generate Founder Posts</button>
+      <button class="btn ghost" data-gen="trend">Generate Trend Reaction</button>
+    </div>
+    <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+      <select id="studioFilter" class="btn ghost">
+        <option value="generated">Review Generated Posts</option>
+        <option value="">All</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="ready_to_post">Ready to post</option>
+      </select>
+      <button class="btn ghost" id="studioRefresh">Review Generated Posts</button>
+      <div class="spacer"></div>
+      <button class="btn good" id="studioApprove">Approve Selected</button>
+      <button class="btn ghost" id="studioReject">Reject Selected</button>
+      <button class="btn" id="studioExport">Export Approved</button>
+    </div>
+    <div class="cards" id="studioList" style="margin-top:12px"></div>`;
+
+  const filter = $("#studioFilter", root);
+  root.querySelectorAll("[data-gen]").forEach((b) => {
+    b.onclick = async () => {
+      const label = b.textContent;
+      b.disabled = true; b.textContent = "Generating…";
+      try {
+        const d = await api("/v1/studio/generate", { method: "POST", body: JSON.stringify({ batch: b.dataset.gen }) });
+        if (d.error) toast("Failed: " + d.error);
+        else { toast(`Generated ${d.generated} post(s) → saved locally`); filter.value = "generated"; await renderStudioList(root); }
+      } catch (e) { toast("Failed: " + e.message); }
+      b.disabled = false; b.textContent = label;
+    };
+  });
+  $("#studioRefresh", root).onclick = () => { filter.value = "generated"; renderStudioList(root); };
+  filter.onchange = () => renderStudioList(root);
+  $("#studioApprove", root).onclick = () => studioBulk(root, "approve");
+  $("#studioReject", root).onclick = () => studioBulk(root, "reject");
+  $("#studioExport", root).onclick = async () => {
+    try {
+      const r = await api("/v1/studio/export", { method: "POST" });
+      toast(`Exported ${r.exported} approved post(s) → ready_to_post`);
+      renderStudioList(root);
+    } catch (e) { toast("Failed: " + e.message); }
+  };
+  await renderStudioList(root);
+};
+
+async function studioBulk(root, action) {
+  const ids = [...studioSelected];
+  if (!ids.length) { toast("Select one or more posts first"); return; }
+  let n = 0;
+  for (const id of ids) {
+    try { const r = await api(`/v1/studio/posts/${id}/${action}`, { method: "POST" }); if (r.ok) n++; } catch {}
+  }
+  studioSelected.clear();
+  toast(`${action === "approve" ? "Approved" : "Rejected"} ${n} post(s)`);
+  renderStudioList(root);
+}
+
+async function renderStudioList(root) {
+  const status = $("#studioFilter", root).value;
+  const data = await api(`/v1/studio/posts${status ? `?status=${status}` : ""}`);
+  const c = data.counts || {};
+  $("#studioCounts", root).textContent =
+    `generated ${c.generated || 0} · approved ${c.approved || 0} · rejected ${c.rejected || 0} · ready ${c.ready_to_post || 0}`;
+  const list = $("#studioList", root);
+  list.innerHTML = "";
+  if (!data.posts.length) { list.innerHTML = `<div class="muted">No posts here yet. Generate a batch above.</div>`; return; }
+  for (const p of data.posts) list.appendChild(studioCard(p, root));
+}
+
+function scoreChip(label, v, invert) {
+  const n = typeof v === "number" ? v : 0;
+  const good = invert ? n <= 0.34 : n >= 0.5;
+  const warn = invert ? n > 0.34 && n <= 0.66 : n >= 0.3 && n < 0.5;
+  const cls = good ? "good" : warn ? "warn" : "bad";
+  return `<span class="badge ${cls}">${label} ${n.toFixed(2)}</span>`;
+}
+
+function studioCard(p, root) {
+  const sel = studioSelected.has(p.id);
+  const tags = (p.hashtags || []).map((t) => esc(t)).join(" ");
+  const card = el(`<div class="card">
+    <div class="meta">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" class="studioSel" ${sel ? "checked" : ""} />
+        <span class="badge">${esc(p.status)}</span>
+      </label>
+      <span class="badge pillar">${esc(p.pillar || "")}</span>
+      <span class="badge">${esc(p.platform)} · ${esc(p.format)}</span>
+      ${p.founder_centred ? `<span class="badge founder">founder</span>` : ""}
+      ${p.needs_human_review ? `<span class="badge bad">review</span>` : ""}
+    </div>
+    <div class="hook">${esc(p.hook || "(no hook)")}</div>
+    <div class="body">${esc(p.caption || "")}</div>
+    <div class="meta" style="color:var(--accent,#8ab4ff)">${tags}</div>
+    <details style="margin:6px 0">
+      <summary class="muted">Script · visual · founder presence</summary>
+      <div class="body"><strong>Script</strong><br>${esc(p.script || "").replace(/\n/g, "<br>")}</div>
+      <div class="body"><strong>Visual idea</strong><br>${esc(p.visual_idea || "")}</div>
+      <div class="body"><strong>Founder presence</strong><br>${esc(p.founder_presence_suggestion || "")}</div>
+    </details>
+    <div class="meta">
+      ${scoreChip("risk", p.risk_score, true)}
+      ${scoreChip("mission", p.mission_score)}
+      ${scoreChip("humour", p.humour_score)}
+      ${scoreChip("authenticity", p.authenticity_score)}
+    </div>
+    <div class="actions">
+      <button class="btn good" data-a="approve">Approve</button>
+      <button class="btn ghost" data-a="reject">Reject</button>
+      <button class="btn ghost" data-a="edit">Edit</button>
+    </div></div>`);
+
+  card.querySelector(".studioSel").onchange = (e) => {
+    if (e.target.checked) studioSelected.add(p.id); else studioSelected.delete(p.id);
+  };
+  card.querySelectorAll("[data-a]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        if (b.dataset.a === "edit") {
+          const caption = prompt("Edit caption:", p.caption);
+          if (caption === null) return;
+          const hook = prompt("Edit hook:", p.hook);
+          if (hook === null) return;
+          await api(`/v1/studio/posts/${p.id}/edit`, { method: "POST", body: JSON.stringify({ fields: { caption, hook } }) });
+          toast("Saved local edit");
+        } else {
+          const r = await api(`/v1/studio/posts/${p.id}/${b.dataset.a}`, { method: "POST" });
+          if (r.error) { toast(r.error); return; }
+          toast(`${b.dataset.a} → ${r.post.status}`);
+        }
+        studioSelected.delete(p.id);
+        renderStudioList(root);
+      } catch (e) { toast("Failed: " + e.message); }
+    };
+  });
+  return card;
+}
+
 views.today = async (root) => {
   root.innerHTML = `
     <div class="row">
@@ -796,6 +951,6 @@ async function show(name, seed) {
 $("#tabs").addEventListener("click", (e) => { if (e.target.dataset.view) show(e.target.dataset.view); });
 
 refreshHealth();
-show((location.hash || "#today").slice(1) in views ? location.hash.slice(1) : "today");
+show((location.hash || "#studio").slice(1) in views ? location.hash.slice(1) : "studio");
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

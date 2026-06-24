@@ -743,3 +743,111 @@ def swarm_topics(live: bool = True) -> dict:
 def swarm_seed_sources() -> dict:
     """Seed the starter set of credible UK-first feeds for the scanner bots."""
     return {"added": seed_default_sources()}
+
+
+# --- 5090 Studio Engine: local, offline content generation ------------------
+#
+# These endpoints power the Studio app's offline mode. They need no server sync,
+# no PWA backend and no social connection — every post is generated, reviewed and
+# exported on the local machine via the file-based StudioStore.
+
+
+class StudioGenerateRequest(BaseModel):
+    """Ask the Studio Engine for a batch. ``batch`` is daily20/humour/awareness/…"""
+
+    batch: str = Field(default="daily20")
+    count: int | None = Field(default=None, description="Override batch size (not for daily20).")
+
+
+class StudioEditRequest(BaseModel):
+    """Local edits to a generated post before approving it."""
+
+    fields: dict = Field(default_factory=dict)
+
+
+def _studio_post_dict(post) -> dict:
+    """Flatten a StudioPost for the UI: scores hoisted to top-level keys."""
+    data = post.model_dump(mode="json")
+    data["risk_score"] = post.risk_score
+    data["mission_score"] = post.mission_score
+    data["humour_score"] = post.humour_score
+    data["authenticity_score"] = post.authenticity_score
+    return data
+
+
+@router.post("/v1/studio/generate")
+def studio_generate(req: StudioGenerateRequest) -> dict:
+    """Generate a batch locally and save it to the ``generated`` folder."""
+    from invisable_os.engines.studio import StudioEngine
+    from invisable_os.studio import get_studio_store
+
+    try:
+        posts = StudioEngine().generate_batch(req.batch, count=req.count)
+    except ValueError as exc:
+        return {"error": str(exc), "posts": []}
+    get_studio_store().save_batch(posts)
+    return {
+        "batch": req.batch,
+        "generated": len(posts),
+        "posts": [_studio_post_dict(p) for p in posts],
+    }
+
+
+@router.get("/v1/studio/posts")
+def studio_posts(status: str | None = None) -> dict:
+    """List locally stored posts, optionally filtered by status."""
+    from invisable_os.studio import get_studio_store
+
+    store = get_studio_store()
+    posts = store.list_posts(status)
+    return {
+        "status": status,
+        "counts": store.stats(),
+        "posts": [_studio_post_dict(p) for p in posts],
+    }
+
+
+@router.get("/v1/studio/stats")
+def studio_stats() -> dict:
+    """Counts per local folder (generated/approved/rejected/ready_to_post)."""
+    from invisable_os.studio import get_studio_store
+
+    return {"counts": get_studio_store().stats()}
+
+
+@router.post("/v1/studio/posts/{post_id}/approve")
+def studio_approve(post_id: str) -> dict:
+    from invisable_os.studio import get_studio_store
+
+    post = get_studio_store().approve(post_id)
+    if post is None:
+        return {"error": "not found"}
+    return {"ok": True, "post": _studio_post_dict(post)}
+
+
+@router.post("/v1/studio/posts/{post_id}/reject")
+def studio_reject(post_id: str) -> dict:
+    from invisable_os.studio import get_studio_store
+
+    post = get_studio_store().reject(post_id)
+    if post is None:
+        return {"error": "not found"}
+    return {"ok": True, "post": _studio_post_dict(post)}
+
+
+@router.post("/v1/studio/posts/{post_id}/edit")
+def studio_edit(post_id: str, req: StudioEditRequest) -> dict:
+    from invisable_os.studio import get_studio_store
+
+    post = get_studio_store().edit(post_id, req.fields)
+    if post is None:
+        return {"error": "not found"}
+    return {"ok": True, "post": _studio_post_dict(post)}
+
+
+@router.post("/v1/studio/export")
+def studio_export() -> dict:
+    """Move approved posts to ``ready_to_post`` and write paste-ready files."""
+    from invisable_os.studio import get_studio_store
+
+    return get_studio_store().export_approved()
