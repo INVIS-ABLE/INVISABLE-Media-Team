@@ -22,6 +22,7 @@ from invisable_os.services.fact_check import (
     credibility,
     is_fact_led,
 )
+from invisable_os.services.humanise import humanise, humanness_score
 from invisable_os.services.insights import theme_alerts
 from invisable_os.services.media import assemble_post, finish_post, produce_media
 from invisable_os.services.metrics import sync_metrics
@@ -81,6 +82,8 @@ __all__ = [
     "triage_comment",
     "triage_comments",
     "newsroom_brief",
+    "humanise",
+    "humanness_score",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
