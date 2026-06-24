@@ -1,0 +1,94 @@
+{
+  "name": "INVISABLE OS — Agent Swarm Cycle",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "13,43 * * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every 30 min (48/day cadence)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/warchest",
+        "options": {}
+      },
+      "id": "reserve",
+      "name": "Check reserve health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "version": 2 },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.tier }}",
+              "rightValue": "elite",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ]
+        }
+      },
+      "id": "below_elite",
+      "name": "Reserve below elite?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [ 720, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/swarm/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"drafts_per_topic\": 2, \"live_sources\": true }",
+        "options": {}
+      },
+      "id": "run_swarm",
+      "name": "Run a swarm cycle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 980, 220 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/warchest/stock",
+        "options": {}
+      },
+      "id": "stock",
+      "name": "Top up the War Chest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 1220, 220 ]
+    },
+    {
+      "parameters": {
+        "content": "Quality over volume. The swarm only runs when the reserve is below ELITE (2,000+). It generates more than it publishes and rejects more than it keeps: brand guardrails are the only hard gate; fact-led-without-source and below-bar drafts are flagged for review, never auto-stocked. Cadence: every 30 min ≈ 48/day. Tighten to */15 for up to 96/day when the reserve is healthy.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "note",
+      "name": "Reserve-aware, quality-first",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 980, 440 ]
+    }
+  ],
+  "connections": {
+    "Every 30 min (48/day cadence)": { "main": [ [ { "node": "Check reserve health", "type": "main", "index": 0 } ] ] },
+    "Check reserve health": { "main": [ [ { "node": "Reserve below elite?", "type": "main", "index": 0 } ] ] },
+    "Reserve below elite?": { "main": [ [ { "node": "Run a swarm cycle", "type": "main", "index": 0 } ], [] ] },
+    "Run a swarm cycle": { "main": [ [ { "node": "Top up the War Chest", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}
