@@ -62,7 +62,7 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/swarm",
         # Integrations panel (ResourceSpace DAM + Metricool metrics)
         "/v1/integrations", "/v1/metrics", "/v1/dam",
-        # Analytics screen (Founder Recognition Index over time)
+        # Founder Recognition panel
         "/v1/founder",
     }
     for path in called:
@@ -75,7 +75,6 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/warchest", "/v1/warchest/items",
         "/v1/sources", "/v1/sources/hierarchy",
         "/v1/swarm/bots", "/v1/swarm/stats",
-        "/v1/integrations",
-        "/v1/founder/recognition",
+        "/v1/integrations", "/v1/founder/recognition",
     ):
         assert client.get(path).status_code == 200, path

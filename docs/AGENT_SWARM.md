@@ -23,8 +23,15 @@ platform owns, and stock the survivors into the [Content War Chest](WAR_CHEST.md
 
 ## The pipeline (one cycle)
 
-1. **Scan** — each scanner bot surfaces its topic domain (offline: a deterministic
-   topic pool; with connectors: abstracted scan results).
+1. **Scan** — each scanner bot surfaces its topic domain. This is **source-led**
+   ([`services/source_scan.py`](../core/invisable_os/services/source_scan.py)): when
+   credible sources with RSS feeds are configured, the scanner pulls **live
+   headlines** and routes each to the right bot by topic area; any bot with nothing
+   fresh falls back to a deterministic seed pool, so the swarm never starves. Fetching
+   degrades gracefully (no network / no feeds → seed pool, never an error), and a
+   headline is only ever used as a *topic to brief original content* — never reposted.
+   - `GET /v1/swarm/topics` previews what each bot would feed; `POST /v1/swarm/sources/seed`
+     seeds a starter set of credible UK-first feeds (GOV.UK, NHS, …).
 2. **Generate** — each generate bot drafts against every scanned topic via the
    content generator (degrades to safe, original templates offline).
 3. **Gate** — the only **hard rejection** is the brand guardrails (the Prime

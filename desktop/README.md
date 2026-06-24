@@ -60,6 +60,26 @@ and recommended path.)
 Brand icons are committed under `src-tauri/icons/`. To regenerate the full set from a
 single source PNG: `npm run icons` (runs `tauri icon src-tauri/icons/icon.png`).
 
+### Code signing (remove the SmartScreen warning)
+
+By default the installer is **unsigned**, so Windows SmartScreen shows an "unknown
+publisher" prompt on first run (click *More info → Run anyway*). To ship a **signed**
+installer, add an Authenticode certificate to the repo — the pipeline is already wired
+for it and stays a no-op until the secrets exist:
+
+1. Obtain an Authenticode code-signing certificate (OV or EV) from a CA as a `.pfx`.
+2. Base64-encode it: `base64 -w0 cert.pfx` (or `certutil -encode` on Windows).
+3. In **GitHub → Settings → Secrets and variables → Actions**, add:
+   - `WINDOWS_CERTIFICATE` — the base64 string
+   - `WINDOWS_CERTIFICATE_PASSWORD` — the `.pfx` password
+4. Re-run the **Desktop build** workflow. Tauri signs + timestamps the installer
+   automatically (`src-tauri/tauri.conf.json` sets `timestampUrl` + `digestAlgorithm`),
+   and the SmartScreen warning goes away (EV certs clear it immediately; OV certs build
+   reputation over time/downloads).
+
+> With the secrets unset, builds are unsigned — exactly as today — so this never blocks
+> the pipeline.
+
 ---
 
 ## First launch & the role selector

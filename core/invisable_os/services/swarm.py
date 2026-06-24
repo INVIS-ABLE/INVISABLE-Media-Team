@@ -26,6 +26,7 @@ from invisable_os.engines.quality import QualityEngine
 from invisable_os.guardrails import check as brand_check
 from invisable_os.models.content import ContentCandidate, Platform, QueueStatus
 from invisable_os.services.fact_check import check_post
+from invisable_os.services.source_scan import gather_topics
 from invisable_os.services.war_chest import reserve_health
 from invisable_os.store import Repository, get_repository
 
@@ -174,21 +175,26 @@ class AgentSwarm:
             )
         return out
 
-    def run_cycle(self, *, drafts_per_topic: int = 2, platform: Platform = Platform.TIKTOK) -> dict:
+    def run_cycle(self, *, drafts_per_topic: int = 2, platform: Platform = Platform.TIKTOK,
+                  live_sources: bool = True) -> dict:
         """Run one full swarm cycle and persist the survivors + bot records.
 
         Returns the funnel and per-bot breakdown. Survivors are enqueued to the
         approval queue (status ``needs_human_review`` is never auto-approved) and the
         best are stocked straight into the War Chest reserve.
+
+        ``live_sources`` lets the scan stage pull live headlines from configured
+        sources (degrading to the seed pool); set ``False`` to force the offline pool.
         """
         cycle_id = uuid.uuid4().hex
         health = reserve_health(repository=self.repo)
         result = CycleResult(cycle_id=cycle_id, bot_records=[], reserve_tier=health["tier"])
 
-        # 1. SCAN — each scanner bot surfaces its topics.
+        # 1. SCAN — each scanner bot surfaces its topics (live sources → seed fallback).
+        scanned = gather_topics(_SCAN_TOPICS, repository=self.repo, live=live_sources)
         topics: list[tuple[str, str]] = []  # (topic, scanner_bot_name)
         for bot in (b for b in SWARM_BOTS if b.stage == "scan"):
-            bot_topics = _SCAN_TOPICS.get(bot.name, ())
+            bot_topics = scanned.get(bot.name, [])
             for topic in bot_topics:
                 topics.append((topic, bot.name))
             self._record(result, bot, produced=len(bot_topics), passed=len(bot_topics))
@@ -348,9 +354,9 @@ class AgentSwarm:
         )
 
 
-def run_swarm_cycle(*, drafts_per_topic: int = 2) -> dict:
+def run_swarm_cycle(*, drafts_per_topic: int = 2, live_sources: bool = True) -> dict:
     """Convenience entry point used by the API/CLI."""
-    return AgentSwarm().run_cycle(drafts_per_topic=drafts_per_topic)
+    return AgentSwarm().run_cycle(drafts_per_topic=drafts_per_topic, live_sources=live_sources)
 
 
 def swarm_stats(*, repository: Repository | None = None) -> dict:

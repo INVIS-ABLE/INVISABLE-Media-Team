@@ -170,54 +170,6 @@ views.agents = async (root) => {
     </div>`).join("");
 };
 
-views.analytics = async (root) => {
-  root.innerHTML = `<div class="row"><h2>Analytics</h2><div class="spacer"></div>
-    <button class="btn ghost" id="refresh">Refresh</button></div>
-    <div class="stats" id="stats"></div>
-    <div class="row"><h3>Founder Recognition Index over time</h3></div>
-    <div id="trend" style="display:flex;align-items:flex-end;gap:4px;height:120px;padding:10px;background:rgba(255,255,255,.03);border-radius:10px;overflow-x:auto"></div>
-    <div class="row"><h3>Latest recognition breakdown</h3></div>
-    <div class="meta" id="breakdown"></div>
-    <div class="muted" style="margin-top:12px">Recognition is a <b>consequence of genuine impact</b> — media mentions, podcast &amp; speaking invitations, partner/sponsor enquiries, profile visits. Feed it from the Watchtower (Integrations → metrics sync, or the nightly learning workflow).</div>`;
-  $("#refresh", root).onclick = () => views.analytics(root);
-
-  const pct = (x) => `${Math.round((x || 0) * 100)}%`;
-  const rec = await api("/v1/founder/recognition");
-  const health = await api("/health").catch(() => ({}));
-  let share = null;
-  try {
-    const q = await api("/v1/queue");
-    const items = q.items || [];
-    if (items.length) share = items.filter((i) => (i.candidate || {}).founder_centred).length / items.length;
-  } catch {}
-
-  const cells = [
-    ["Recognition index", pct(rec.latest)],
-    ["Data points", rec.points || 0],
-    ["Founder presence", share == null ? "–" : pct(share)],
-    ["Target", pct(health.founder_presence_target)],
-  ];
-  $("#stats", root).innerHTML = cells.map(([l, n]) => `<div class="stat"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
-
-  const hist = rec.history || [];
-  const trend = $("#trend", root);
-  if (!hist.length) {
-    trend.innerHTML = `<div class="muted">No recognition data yet — run a metrics sync in Integrations.</div>`;
-  } else {
-    const max = Math.max(...hist.map((h) => h.index_value || 0), 0.0001);
-    trend.innerHTML = hist.map((h) => {
-      const ht = Math.max(Math.round(((h.index_value || 0) / max) * 100), 3);
-      return `<span title="${esc((h.at || "").slice(0, 10))}: ${pct(h.index_value)}" style="flex:0 0 12px;height:${ht}%;background:var(--accent);border-radius:3px 3px 0 0"></span>`;
-    }).join("");
-  }
-
-  const bd = (hist[hist.length - 1] || {}).breakdown || {};
-  const entries = Object.entries(bd).filter(([, v]) => v);
-  $("#breakdown", root).innerHTML = entries.length
-    ? entries.map(([k, v]) => `<span class="badge">${esc(k)}: ${v}</span>`).join("")
-    : `<span class="muted">No breakdown yet.</span>`;
-};
-
 views.values = async (root) => {
   const v = await api("/v1/values");
   const mix = await api("/v1/personality/mix").catch(() => ({}));
@@ -276,6 +228,37 @@ views.integrations = async (root) => {
     } catch (e) { toast("Failed: " + e.message); }
     ev.target.disabled = false;
   };
+};
+
+views.recognition = async (root) => {
+  const d = await api("/v1/founder/recognition");
+  const hist = d.history || [];
+  // The index is 0..1; render a simple bar chart so it reads left-to-right over time.
+  const W = 640, H = 160, pad = 8;
+  const n = hist.length;
+  const bars = hist.map((p, i) => {
+    const bw = n ? (W - pad * 2) / n : 0;
+    const bh = Math.max(2, (p.index_value || 0) * (H - pad * 2));
+    const x = pad + i * bw;
+    const y = H - pad - bh;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="var(--founder)"><title>${esc((p.at || "").slice(0, 16))}: ${(p.index_value || 0).toFixed(3)}</title></rect>`;
+  }).join("");
+  const chart = n
+    ? `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)">${bars}</svg>`
+    : `<div class="muted">No recognition readings yet — run a metrics sync (Integrations) once real performance arrives.</div>`;
+  const latest = hist.length ? hist[hist.length - 1] : null;
+  const breakdown = latest
+    ? Object.entries(latest.breakdown || {}).sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `<li>${esc(k)}: ${v}</li>`).join("")
+    : "";
+  root.innerHTML = `
+    <div class="row"><h2>Founder Recognition</h2><div class="spacer"></div>
+      <span class="badge founder">latest ${(d.latest || 0).toFixed(3)}</span>
+      <span class="badge">${d.points || 0} reading(s)</span>
+    </div>
+    <div class="muted" style="margin-bottom:10px">Recognition is a consequence of impact — media mentions, podcast & speaking invitations, partner/sponsor enquiries, profile visits. Index 0–1, tracked over time.</div>
+    ${chart}
+    ${breakdown ? `<div class="card" style="margin-top:14px"><h3>Latest contributors</h3><ul>${breakdown}</ul></div>` : ""}`;
 };
 
 // --- Remix department: Scanner Dashboard -----------------------------------

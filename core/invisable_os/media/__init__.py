@@ -20,6 +20,7 @@ from invisable_os.media.probes import (
 )
 from invisable_os.media.producer import MediaProducer
 from invisable_os.media.region_probe import (
+    ObjectRegionProbe,
     OCRTextProbe,
     OpenCVFaceProbe,
     region_probes,
@@ -50,5 +51,6 @@ __all__ = [
     "probe_video",
     "OpenCVFaceProbe",
     "OCRTextProbe",
+    "ObjectRegionProbe",
     "region_probes",
 ]
