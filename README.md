@@ -107,7 +107,7 @@ INVISABLE OS orchestrates a self-hostable, mostly open stack. See
 
 | Layer | Tooling |
 | ----- | ------- |
-| Reasoning / LLMs | [Claude](https://claude.ai), [Ollama](https://ollama.com) (Qwen, DeepSeek) |
+| Reasoning / LLMs | [Claude](https://claude.ai), [Ollama](https://ollama.com) (Qwen, DeepSeek) — structured JSON generation + an [LLM-judge](docs/GENERATION.md) on the deterministic floor |
 | Orchestration | [n8n](https://n8n.io), this `core` API |
 | Memory | [PostgreSQL](https://www.postgresql.org), [ChromaDB](https://www.trychroma.com) |
 | Chat UI | [Open WebUI](https://openwebui.com) |
