@@ -592,3 +592,85 @@ class WarChestItemRow(Base):
             "notes": self.notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ============================================================================
+# CREDIBLE SOURCES — the fact-attribution layer.
+#
+# Any fact-led post (statistics, news/government/NHS/employment/legal/medical
+# claims, broadcast quotes) must carry a credible source. ``source`` records the
+# outlet and its credibility tier; ``source_claim`` records an individual claim,
+# its quote/paraphrase, dates and confidence. The fact-check service enforces the
+# rule (see services/fact_check.py). The platform must never present a social-
+# media rumour as a fact.
+# ============================================================================
+
+
+class SourceRow(Base):
+    """A credible source the platform may attribute facts to (sources)."""
+
+    __tablename__ = "source"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    url = Column(String, default="")
+    source_type = Column(String, default="news")  # gov | nhs | ons | broadcaster | …
+    credibility_level = Column(Integer, default=3)  # 1 (highest) … 8 (lowest)
+    country = Column(String, default="UK")
+    topic_area = Column(String, default="", index=True)
+    rss_url = Column(String, default="")
+    enabled = Column(Boolean, default=True)
+    notes = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "url": self.url,
+            "source_type": self.source_type,
+            "credibility_level": self.credibility_level,
+            "country": self.country,
+            "topic_area": self.topic_area,
+            "rss_url": self.rss_url,
+            "enabled": self.enabled,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SourceClaimRow(Base):
+    """One sourced claim with attribution metadata (source_claims)."""
+
+    __tablename__ = "source_claim"
+
+    id = Column(String, primary_key=True)
+    source_id = Column(String, index=True, default="")
+    title = Column(String, default="")
+    claim_text = Column(String, default="")
+    quoted_text = Column(String, default="")
+    paraphrase = Column(String, default="")
+    url = Column(String, default="")
+    publication_date = Column(String, nullable=True)
+    accessed_at = Column(DateTime(timezone=True), default=_now)
+    confidence_score = Column(Float, default=0.5)
+    primary_or_secondary = Column(String, default="secondary")  # primary | secondary
+    fact_checked_status = Column(String, default="unverified", index=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "source_id": self.source_id,
+            "title": self.title,
+            "claim_text": self.claim_text,
+            "quoted_text": self.quoted_text,
+            "paraphrase": self.paraphrase,
+            "url": self.url,
+            "publication_date": self.publication_date,
+            "accessed_at": self.accessed_at.isoformat() if self.accessed_at else None,
+            "confidence_score": self.confidence_score,
+            "primary_or_secondary": self.primary_or_secondary,
+            "fact_checked_status": self.fact_checked_status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

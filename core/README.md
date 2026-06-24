@@ -20,7 +20,7 @@ uvicorn invisable_os.main:app --reload   # http://localhost:8080/docs
 | `invisable_os/brain/` | `INVISABLE_BRAIN` shared memory (ChromaDB + local fallback). |
 | `invisable_os/llm/` | Claude + Ollama clients with graceful degradation. |
 | `invisable_os/models/` | Domain models (content, scoring, metrics). |
-| `invisable_os/services/` | Operational seams: daily pipeline, scheduling, publishing, [Content War Chest](../docs/WAR_CHEST.md). |
+| `invisable_os/services/` | Operational seams: pipeline, scheduling, publishing, [War Chest](../docs/WAR_CHEST.md), [credible-source fact-check](../docs/SOURCES.md). |
 | `invisable_os/api/` | FastAPI orchestration surface. |
 | `tests/` | Deterministic engine + guardrail tests. |
 

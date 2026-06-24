@@ -33,8 +33,10 @@ from invisable_os.models.metrics import PerformanceSignal
 from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.scheduling import default_week
 from invisable_os.services import (
+    CREDIBILITY_HIERARCHY,
     assemble_post,
     calendar,
+    check_post,
     produce_media,
     publish_due,
     reserve_health,
@@ -521,6 +523,81 @@ def brain_stats() -> dict:
         "trend_signals": brain.count("trend_signal"),
         "cultural_notes": brain.count("cultural_note"),
     }
+
+
+# --- Credible sources & the fact-check rule ---------------------------------
+
+
+class SourceRequest(BaseModel):
+    name: str
+    url: str = ""
+    source_type: str = "news"
+    credibility_level: int = 3
+    country: str = "UK"
+    topic_area: str = ""
+    rss_url: str = ""
+    enabled: bool = True
+    notes: str = ""
+
+
+class SourceClaimRequest(BaseModel):
+    source_id: str = ""
+    title: str = ""
+    claim_text: str = ""
+    quoted_text: str = ""
+    paraphrase: str = ""
+    url: str = ""
+    publication_date: str | None = None
+    confidence_score: float = 0.5
+    primary_or_secondary: str = "secondary"
+    fact_checked_status: str = "unverified"
+
+
+class FactCheckRequest(BaseModel):
+    text: str
+    source_ids: list[str] = Field(default_factory=list)
+
+
+@router.get("/v1/sources")
+def list_sources(enabled: bool | None = None) -> dict:
+    """List credible sources, ordered best-credibility-first."""
+    return {"sources": get_repository().list_sources(enabled=enabled)}
+
+
+@router.post("/v1/sources")
+def add_source(req: SourceRequest) -> dict:
+    return {"id": get_repository().add_source(req.model_dump())}
+
+
+@router.get("/v1/sources/hierarchy")
+def source_hierarchy() -> dict:
+    """The preferred source-credibility hierarchy (tier 1 best → 8 lowest)."""
+    return {
+        "hierarchy": [
+            {"source_type": k, "tier": tier, "label": label}
+            for k, (tier, label) in sorted(CREDIBILITY_HIERARCHY.items(), key=lambda kv: kv[1][0])
+        ]
+    }
+
+
+@router.get("/v1/sources/{source_id}/claims")
+def list_source_claims(source_id: str) -> dict:
+    return {"claims": get_repository().list_source_claims(source_id=source_id)}
+
+
+@router.post("/v1/sources/{source_id}/claims")
+def add_source_claim(source_id: str, req: SourceClaimRequest) -> dict:
+    payload = req.model_dump()
+    payload["source_id"] = source_id
+    return {"id": get_repository().add_source_claim(payload)}
+
+
+@router.post("/v1/factcheck")
+def factcheck(req: FactCheckRequest) -> dict:
+    """Apply the Credible Source Rule: is this fact-led, and is it sourced?"""
+    repo = get_repository()
+    sources = [s for sid in req.source_ids if (s := repo.get_source(sid))]
+    return check_post(req.text, sources).as_dict()
 
 
 # --- Content War Chest (the reserve) ----------------------------------------

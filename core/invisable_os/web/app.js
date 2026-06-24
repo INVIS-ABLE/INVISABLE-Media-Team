@@ -564,6 +564,72 @@ views.library = async (root) => {
     </div></div>`).join("");
 };
 
+// --- Source Control Centre (credible sources + fact-check) ------------------
+views.sources = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Source Control Centre</h2></div>
+    <div class="muted">Any fact-led post (statistics, news, government/NHS/benefits/legal/medical
+      claims, broadcast quotes) must carry a credible source. Social/community sources are for
+      lived experience only — never as hard facts.</div>
+    <div class="form">
+      <input id="sname" class="input" placeholder="Source name (e.g. ONS, BBC News)…" style="flex:1 1 200px" />
+      <select id="stype" class="input"></select>
+      <input id="surl" class="input" placeholder="URL (optional)" />
+      <button class="btn" id="sadd">Add source</button>
+    </div>
+    <div class="card">
+      <h3>Fact-check a draft</h3>
+      <textarea id="fctext" class="input" placeholder="Paste a draft post…" style="width:100%;min-height:70px"></textarea>
+      <div class="row" style="margin-top:8px"><select id="fcsource" class="input" style="flex:1"></select>
+        <button class="btn" id="fcgo">Check</button></div>
+      <div id="fcout"></div>
+    </div>
+    <div class="cards" id="slist"></div>`;
+  // Populate source-type options from the credibility hierarchy.
+  let hierarchy = [];
+  try { hierarchy = (await api("/v1/sources/hierarchy")).hierarchy; } catch {}
+  $("#stype", root).innerHTML = hierarchy.map((h) =>
+    `<option value="${esc(h.source_type)}">${esc(h.source_type)} — tier ${h.tier}</option>`).join("");
+  const sources = (await api("/v1/sources")).sources || [];
+  $("#fcsource", root).innerHTML = `<option value="">(no source attached)</option>` +
+    sources.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} · ${esc(s.source_type)}</option>`).join("");
+  $("#sadd", root).onclick = async () => {
+    const name = $("#sname", root).value.trim();
+    if (!name) return toast("Enter a source name");
+    try {
+      await api("/v1/sources", { method: "POST", body: JSON.stringify({
+        name, source_type: $("#stype", root).value, url: $("#surl", root).value.trim() }) });
+      toast("Source added"); views.sources(root);
+    } catch (e) { toast("Failed: " + e.message); }
+  };
+  $("#fcgo", root).onclick = async () => {
+    const text = $("#fctext", root).value.trim();
+    if (!text) return toast("Paste a draft to check");
+    const sid = $("#fcsource", root).value;
+    try {
+      const v = await api("/v1/factcheck", { method: "POST", body: JSON.stringify({
+        text, source_ids: sid ? [sid] : [] }) });
+      $("#fcout", root).innerHTML = `<div class="meta" style="margin-top:10px">
+        <span class="badge ${v.fact_led ? "warn" : ""}">${v.fact_led ? "fact-led" : "not fact-led"}</span>
+        <span class="badge ${v.ok ? "good" : "bad"}">${v.ok ? "OK" : "needs a source"}</span>
+        ${(v.attributions || []).map((a) => `<span class="badge good">${esc(a)}</span>`).join("")}
+        ${(v.weak_sources || []).map((w) => `<span class="badge bad">weak: ${esc(w)}</span>`).join("")}
+      </div>
+      ${v.reasons && v.reasons.length ? `<div class="muted">Flagged because: ${v.reasons.map(esc).join("; ")}.</div>` : ""}
+      <div class="muted">${esc(v.advisory)}</div>`;
+    } catch (e) { toast("Failed: " + e.message); }
+  };
+  $("#slist", root).innerHTML = sources.map((s) => `<div class="card">
+    <div class="hook">${esc(s.name)}</div>
+    <div class="meta">
+      <span class="badge pillar">${esc(s.source_type)}</span>
+      <span class="badge ${s.credibility_level <= 3 ? "good" : s.credibility_level <= 6 ? "warn" : "bad"}">tier ${s.credibility_level}</span>
+      <span class="badge">${esc(s.country || "")}</span>
+      ${s.enabled ? "" : `<span class="badge bad">disabled</span>`}
+    </div>
+    ${s.url ? `<div class="muted" style="font-size:12px">${esc(s.url)}</div>` : ""}
+  </div>`).join("") || `<div class="muted">No sources yet — add credible UK-first sources above.</div>`;
+};
+
 // --- router ----------------------------------------------------------------
 async function show(name, seed) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
