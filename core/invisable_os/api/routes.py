@@ -35,6 +35,7 @@ from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.scheduling import default_week
 from invisable_os.services import (
     CREDIBILITY_HIERARCHY,
+    AgentSwarm,
     assemble_post,
     calendar,
     check_post,
@@ -42,9 +43,11 @@ from invisable_os.services import (
     publish_due,
     reserve_health,
     run_and_queue_daily,
+    run_swarm_cycle,
     schedule_next,
     select_next,
     stock_approved,
+    swarm_stats,
     sync_metrics,
     sync_post_to_dam,
 )
@@ -665,3 +668,34 @@ def warchest_stock() -> dict:
 def warchest_select(req: WarChestSelectRequest) -> dict:
     """Draw the best non-repetitive ready item for the next slot, and mark it used."""
     return select_next(platform=req.platform, category=req.category, mark_used=req.mark_used)
+
+
+# --- Agent swarm (20-bot content production) --------------------------------
+
+
+class SwarmRunRequest(BaseModel):
+    drafts_per_topic: int = Field(default=2, ge=1, le=20)
+
+
+@router.get("/v1/swarm/bots")
+def swarm_bots() -> dict:
+    """The 20 specialist bots with their lifetime contribution totals."""
+    return {"bots": AgentSwarm().bots()}
+
+
+@router.get("/v1/swarm/stats")
+def swarm_statistics() -> dict:
+    """Production funnel + per-bot pass rates + reserve health, for the dashboard."""
+    return swarm_stats()
+
+
+@router.post("/v1/swarm/run")
+def swarm_run(req: SwarmRunRequest) -> dict:
+    """Run one swarm cycle: scan → generate → gate → stock. Reject-heavy by design."""
+    return run_swarm_cycle(drafts_per_topic=req.drafts_per_topic)
+
+
+@router.get("/v1/swarm/outputs")
+def swarm_outputs(cycle_id: str | None = None, bot_name: str | None = None) -> dict:
+    """Recent per-bot output records (optionally filtered by cycle or bot)."""
+    return {"outputs": get_repository().list_bot_outputs(cycle_id=cycle_id, bot_name=bot_name)}

@@ -505,3 +505,28 @@ CREATE TABLE IF NOT EXISTS source_claim (
 );
 CREATE INDEX IF NOT EXISTS idx_source_claim_source ON source_claim (source_id);
 CREATE INDEX IF NOT EXISTS idx_source_claim_status ON source_claim (fact_checked_status);
+
+-- ============================================================================
+-- AGENT SWARM — the 20-bot content production swarm.
+--
+-- Each cycle, the specialist bots scan, generate, gate and stock content. A
+-- bot_output row records one bot's contribution in a cycle (counts + a
+-- representative score) so the Agent Swarm Dashboard can show drafts-today,
+-- quality pass-rate, and best/weakest bots. See core/invisable_os/services/swarm.py.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS bot_output (
+    id          TEXT PRIMARY KEY,
+    cycle_id    TEXT NOT NULL DEFAULT '',
+    bot_name    TEXT NOT NULL,
+    stage       TEXT NOT NULL DEFAULT '',   -- scan | generate | gate | schedule
+    task_type   TEXT NOT NULL DEFAULT '',
+    produced    INT  NOT NULL DEFAULT 0,
+    passed      INT  NOT NULL DEFAULT 0,
+    rejected    INT  NOT NULL DEFAULT 0,
+    score       REAL NOT NULL DEFAULT 0,
+    status      TEXT NOT NULL DEFAULT 'ok',
+    output      JSONB NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_bot_output_cycle ON bot_output (cycle_id);
+CREATE INDEX IF NOT EXISTS idx_bot_output_bot   ON bot_output (bot_name);

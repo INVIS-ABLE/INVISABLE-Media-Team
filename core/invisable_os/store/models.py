@@ -772,3 +772,49 @@ class SourceClaimRow(Base):
             "fact_checked_status": self.fact_checked_status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ============================================================================
+# AGENT SWARM — the 20-bot content production swarm.
+#
+# Each cycle, the specialist bots scan, generate, gate and stock content. A
+# ``bot_output`` row records one bot's contribution in a cycle (how many items it
+# produced/passed/rejected, plus a representative score) so the Agent Swarm
+# Dashboard can show drafts-today, quality pass-rate, and best/weakest bots.
+# See services/swarm.py.
+# ============================================================================
+
+
+class BotOutputRow(Base):
+    """One specialist bot's contribution within a swarm cycle (bot_outputs)."""
+
+    __tablename__ = "bot_output"
+
+    id = Column(String, primary_key=True)
+    cycle_id = Column(String, index=True, default="")
+    bot_name = Column(String, nullable=False, index=True)
+    stage = Column(String, default="")  # scan | generate | gate | schedule
+    task_type = Column(String, default="")
+    produced = Column(Integer, default=0)
+    passed = Column(Integer, default=0)
+    rejected = Column(Integer, default=0)
+    score = Column(Float, default=0.0)
+    status = Column(String, default="ok")
+    output = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "cycle_id": self.cycle_id,
+            "bot_name": self.bot_name,
+            "stage": self.stage,
+            "task_type": self.task_type,
+            "produced": self.produced,
+            "passed": self.passed,
+            "rejected": self.rejected,
+            "score": self.score,
+            "status": self.status,
+            "output": self.output or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

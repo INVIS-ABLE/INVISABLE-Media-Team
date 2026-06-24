@@ -16,6 +16,12 @@ from invisable_os.services.metrics import sync_metrics
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due
 from invisable_os.services.scheduling import calendar, schedule_next
+from invisable_os.services.swarm import (
+    SWARM_BOTS,
+    AgentSwarm,
+    run_swarm_cycle,
+    swarm_stats,
+)
 from invisable_os.services.war_chest import (
     reserve_health,
     select_next,
@@ -39,4 +45,8 @@ __all__ = [
     "select_next",
     "sync_post_to_dam",
     "sync_metrics",
+    "AgentSwarm",
+    "SWARM_BOTS",
+    "run_swarm_cycle",
+    "swarm_stats",
 ]
