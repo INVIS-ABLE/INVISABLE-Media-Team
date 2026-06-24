@@ -203,6 +203,14 @@ def api_queue(status: str | None = None) -> dict:
     return {"counts": repo.counts_by_status(), "items": repo.list_queue(status=status)}
 
 
+@api_router.get("/calendar", dependencies=[Depends(require_token)])
+def api_calendar() -> dict:
+    """Scheduled posts grouped by ISO date, for the Scheduled Posts calendar view."""
+    from invisable_os.services import calendar
+
+    return {"calendar": calendar()}
+
+
 @api_router.get("/warchest", dependencies=[Depends(require_token)])
 def api_warchest(category: str | None = None, reserve_status: str | None = "ready") -> dict:
     repo = get_repository()
