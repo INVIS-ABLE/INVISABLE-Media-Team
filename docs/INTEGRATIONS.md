@@ -91,6 +91,24 @@ Surfaced in the dashboard's **Insights** view. Detection is pure and determinist
 (signals + a `now` reference in, ranked alerts out); it needs a few weeks of synced
 metrics before the baseline is meaningful.
 
+### Smart posting times — learned scheduling
+
+Fixed weekly slots post consistently but blindly. `rank_posting_slots()` learns from
+real performance: it joins each performance signal to its post's actual `published_at`
+time, buckets engagement by weekday + hour, and ranks the slots that beat the average
+(with a predicted lift). Optionally narrowed to a platform/theme — or to a specific
+queued post via `item_id`, which infers both.
+
+```
+GET /v1/scheduling/suggest?item_id=…   (or ?platform=tiktok&theme=founder&top=3)
+   → { item_id, platform, theme, observations,
+       suggestions: [{ weekday, hour, label, mean, samples, lift_pct }] }
+```
+
+Surfaced as a **⏰ Best time** button on each queue card. Degrades to an empty
+suggestion list (never an error) until enough posts have published and gathered
+metrics.
+
 ## Status & safety
 
 | Integration | Configured by | Offline behaviour |

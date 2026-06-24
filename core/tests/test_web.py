@@ -48,7 +48,8 @@ def test_dashboard_only_uses_existing_api_endpoints():
     js = client.get("/app/app.js").text
     called = set(re.findall(r"`?(/v1/[a-z/]+)", js))
     known_prefixes = {
-        "/v1/daily/plan", "/v1/queue", "/v1/calendar", "/v1/media", "/v1/agents",
+        "/v1/daily/plan", "/v1/queue", "/v1/calendar", "/v1/scheduling", "/v1/media",
+        "/v1/agents",
         "/v1/values", "/v1/personality/mix", "/v1/channels", "/v1/brain",
         # Remix department screens (Scanner / Inbox / Remix Studio / Rights Manager /
         # Pop Culture Index / Voiceover Queue / Asset Library)

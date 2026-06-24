@@ -262,6 +262,7 @@ function queueCard(it, root) {
       <button class="btn good" data-a="approve">Approve</button>
       <button class="btn good" data-a="approve-finish" title="Approve, then produce + assemble the finished video">Approve &amp; finish</button>
       <button class="btn ghost" data-a="schedule-next">Schedule</button>
+      <button class="btn ghost" data-a="best-time" title="Best posting slot, learned from when published posts performed">⏰ Best time</button>
       <button class="btn ghost" data-a="produce">Produce</button>
       <button class="btn ghost" data-a="finish" title="Produce + assemble a finished video now">Finish</button>
       <button class="btn ghost" data-a="reject">Reject</button>
@@ -274,6 +275,12 @@ function queueCard(it, root) {
         if (act === "produce") {
           const r = await api(`/v1/media/produce/${it.id}`, { method: "POST" });
           toast(`Produced ${r.produced} assets`);
+        } else if (act === "best-time") {
+          const r = await api(`/v1/scheduling/suggest?item_id=${it.id}`);
+          const best = (r.suggestions || [])[0];
+          toast(best
+            ? `Best time: ${best.label} (${best.lift_pct > 0 ? "+" : ""}${best.lift_pct}% vs avg, n=${best.samples})`
+            : `Not enough performance history yet for ${esc(r.platform || "this post")} — posts need to publish and gather metrics first.`);
         } else if (act === "finish") {
           const r = await api(`/v1/media/finish/${it.id}`, { method: "POST" });
           toast(r.error ? r.error : `Finished: ${r.produced} assets → ${r.assemble_backend}`);

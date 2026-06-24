@@ -29,6 +29,7 @@ from invisable_os.engines.remix import (
 )
 from invisable_os.engines.studio import StudioEngine
 from invisable_os.engines.tagging import TagNetwork
+from invisable_os.engines.timing import rank_posting_slots
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.engines.watchtower import AlgorithmWatchtower
 
@@ -44,6 +45,7 @@ __all__ = [
     "QualityEngine",
     "ContentFlywheel",
     "detect_theme_alerts",
+    "rank_posting_slots",
     "TagNetwork",
     "RemixTrendEngine",
     "TrendScanner",
