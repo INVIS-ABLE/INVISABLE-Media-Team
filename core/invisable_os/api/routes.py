@@ -59,6 +59,7 @@ from invisable_os.services import (
     failsafe_status,
     finish_post,
     gather_topics,
+    launch_campaign,
     post_attribution,
     produce_media,
     publish_due,
@@ -736,6 +737,26 @@ def brain_alerts(weeks: int = 4, min_change: float = 0.20) -> dict:
 class RestoreRequest(BaseModel):
     snapshot: dict
     sections: list[str] | None = None
+
+
+class CampaignRequest(BaseModel):
+    brief: str
+    theme: str = ""
+    posts: int = Field(default=12, ge=1, le=60)
+    platform: Platform = Platform.TIKTOK
+    persist: bool = False
+
+
+@router.post("/v1/campaign/launch")
+def campaign_launch(req: CampaignRequest) -> dict:
+    """The Big Campaign Button: generate + gate + marshal a themed content burst."""
+    return launch_campaign(
+        req.brief,
+        theme=req.theme,
+        posts=req.posts,
+        platform=req.platform,
+        persist=req.persist,
+    )
 
 
 @router.get("/v1/failsafe/status")

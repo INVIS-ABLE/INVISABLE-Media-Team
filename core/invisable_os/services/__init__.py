@@ -11,6 +11,7 @@ from invisable_os.services.backup import (
     restore_snapshot,
     verify_snapshot,
 )
+from invisable_os.services.campaign import BigCampaign, launch_campaign
 from invisable_os.services.consent import consent_state
 from invisable_os.services.dam import sync_post_to_dam
 from invisable_os.services.decay import DecayReport, detect_decay
@@ -69,6 +70,8 @@ __all__ = [
     "restore_snapshot",
     "verify_snapshot",
     "failsafe_status",
+    "launch_campaign",
+    "BigCampaign",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
