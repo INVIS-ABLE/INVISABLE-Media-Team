@@ -523,3 +523,72 @@ class SubtitleRow(Base):
             "language": self.language,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ============================================================================
+# CONTENT WAR CHEST — the reserve of approved, ready-to-post assets.
+#
+# The platform's rule is "always generate more than you publish". The War Chest
+# is the durable reserve that makes that real: approved queue items are stocked
+# here with a category, freshness and expiry, and the Scheduler & War Chest bot
+# draws the best, non-repetitive item from it each posting slot. Reserve health
+# tiers: minimum 500 · healthy 1,000 · elite 2,000+ (see services/war_chest.py).
+# ============================================================================
+
+
+class WarChestItemRow(Base):
+    """One approved asset held in reserve, ready to be scheduled/published."""
+
+    __tablename__ = "war_chest_item"
+
+    id = Column(String, primary_key=True)
+    queue_item_id = Column(String, index=True, default="")
+    candidate_id = Column(String, default="")
+    title = Column(String, default="")
+    category = Column(String, default="evergreen", index=True)
+    platform = Column(String, default="")
+    pillar = Column(String, default="")
+
+    evergreen = Column(Boolean, default=False)
+    reserve_status = Column(String, default="ready", index=True)  # ready|used|expired|retired
+
+    quality_score = Column(Float, default=0.0)
+    mission_score = Column(Float, default=0.0)
+    humour_score = Column(Float, default=0.0)
+    risk_score = Column(Float, default=0.0)
+    freshness_score = Column(Float, default=1.0)
+
+    tags = Column(JSON, default=list)
+    payload = Column(JSON, default=dict)  # the candidate/content snapshot to post
+
+    expiry_date = Column(DateTime(timezone=True), nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    reuse_count = Column(Integer, default=0)
+    notes = Column(String, default="")
+
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "queue_item_id": self.queue_item_id,
+            "candidate_id": self.candidate_id,
+            "title": self.title,
+            "category": self.category,
+            "platform": self.platform,
+            "pillar": self.pillar,
+            "evergreen": self.evergreen,
+            "reserve_status": self.reserve_status,
+            "quality_score": self.quality_score,
+            "mission_score": self.mission_score,
+            "humour_score": self.humour_score,
+            "risk_score": self.risk_score,
+            "freshness_score": self.freshness_score,
+            "tags": self.tags or [],
+            "payload": self.payload or {},
+            "expiry_date": self.expiry_date.isoformat() if self.expiry_date else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
+            "reuse_count": self.reuse_count,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

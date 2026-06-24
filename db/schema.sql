@@ -428,3 +428,38 @@ CREATE TABLE IF NOT EXISTS subtitles (
     language          TEXT NOT NULL DEFAULT 'en',
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ============================================================================
+-- CONTENT WAR CHEST — the reserve of approved, ready-to-post assets.
+--
+-- "Always generate more than you publish." Approved queue items are stocked here
+-- with a category, freshness and expiry; the Scheduler & War Chest bot draws the
+-- best non-repetitive item per slot. Reserve health: min 500 · healthy 1,000 ·
+-- elite 2,000+ (see core/invisable_os/services/war_chest.py).
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS war_chest_item (
+    id              TEXT PRIMARY KEY,
+    queue_item_id   TEXT NOT NULL DEFAULT '',
+    candidate_id    TEXT NOT NULL DEFAULT '',
+    title           TEXT NOT NULL DEFAULT '',
+    category        TEXT NOT NULL DEFAULT 'evergreen',
+    platform        TEXT NOT NULL DEFAULT '',
+    pillar          TEXT NOT NULL DEFAULT '',
+    evergreen       BOOLEAN NOT NULL DEFAULT FALSE,
+    reserve_status  TEXT NOT NULL DEFAULT 'ready'
+                    CHECK (reserve_status IN ('ready','used','expired','retired')),
+    quality_score   REAL NOT NULL DEFAULT 0,
+    mission_score   REAL NOT NULL DEFAULT 0,
+    humour_score    REAL NOT NULL DEFAULT 0,
+    risk_score      REAL NOT NULL DEFAULT 0,
+    freshness_score REAL NOT NULL DEFAULT 1,
+    tags            TEXT[] NOT NULL DEFAULT '{}',
+    payload         JSONB NOT NULL DEFAULT '{}',
+    expiry_date     TIMESTAMPTZ,
+    last_used_at    TIMESTAMPTZ,
+    reuse_count     INT NOT NULL DEFAULT 0,
+    notes           TEXT NOT NULL DEFAULT '',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_war_chest_category ON war_chest_item (category);
+CREATE INDEX IF NOT EXISTS idx_war_chest_status   ON war_chest_item (reserve_status);
