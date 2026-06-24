@@ -3,8 +3,11 @@
 import pytest
 
 from invisable_os.media.region_probe import (
+    DEFAULT_OBJECT_LABELS,
+    ObjectRegionProbe,
     OCRTextProbe,
     OpenCVFaceProbe,
+    labelled_detections_to_regions,
     merge_regions,
     pixels_to_box,
 )
@@ -139,4 +142,64 @@ def test_default_probes_include_region_detectors():
     from invisable_os.media.probes import default_probes
 
     names = {p.name for p in default_probes()}
-    assert {"ffmpeg", "whisper", "opencv-face", "ocr-text"} <= names
+    assert {"ffmpeg", "whisper", "opencv-face", "ocr-text", "object-region"} <= names
+
+
+# --- Object probe (AGPL-safe label mapping) ---------------------------------
+
+
+def test_labelled_detections_map_and_filter():
+    frames = [(1080, 1920, [
+        ("drill", 300, 300, 200, 200, 0.9),    # tool → HAND_TOOL_PRODUCT
+        ("logo", 800, 100, 150, 150, 0.8),     # brand → LOGO
+        ("cat", 10, 10, 50, 50, 0.95),         # unknown label → dropped
+        ("knife", 400, 1000, 100, 100, 0.2),   # below confidence → dropped
+    ])]
+    regions = labelled_detections_to_regions(frames, DEFAULT_OBJECT_LABELS)
+    kinds = sorted(r.kind.value for r in regions)
+    assert kinds == ["hand_tool_product", "logo"]
+
+
+def test_object_probe_appends_regions_via_injected_detector():
+    def detector(path, n):
+        return [(1080, 1920, [("hammer", 300, 1100, 200, 200, 0.95)])]
+
+    probe = ObjectRegionProbe(detector=detector)
+    spec = probe.probe("clip.mp4", VideoSpec())
+    assert len(spec.regions) == 1
+    assert spec.regions[0].kind == RegionKind.HAND_TOOL_PRODUCT
+
+
+def test_object_probe_dry_run_without_detector_or_model(monkeypatch):
+    monkeypatch.delenv("OBJECT_DETECT_MODEL", raising=False)
+    probe = ObjectRegionProbe()
+    assert probe.available is False
+    spec = probe.probe("clip.mp4", VideoSpec())
+    assert spec.regions == []
+
+
+def test_object_probe_uses_BSD_opencv_not_agpl_yolo():
+    # Guardrail: the licence-clean default backend is OpenCV DNN, and we never
+    # import the AGPL Ultralytics package (mentioning it in prose is fine).
+    import invisable_os.media.region_probe as rp
+
+    text = open(rp.__file__).read()
+    assert "import ultralytics" not in text
+    assert "from ultralytics" not in text
+    assert "cv2.dnn" in text
+
+
+def test_object_detected_over_caption_fails_obstruction():
+    def detector(path, n):
+        return [(1080, 1920, [("drill", 130, 1280, 700, 250, 0.9)])]  # tool ~y0.66–0.79
+
+    spec = ObjectRegionProbe(detector=detector).probe(
+        "clip.mp4",
+        VideoSpec(
+            platform=Platform.TIKTOK, width=1080, height=1920, sharpness=0.9,
+            caption_boxes=[BoxModel(x0=0.12, y0=0.66, x1=0.77, y1=0.78)],  # over the tool
+        ),
+    )
+    report = VideoQualityGate().check(spec)
+    obstruction = next(c for c in report.checks if c.name == "visual_obstruction")
+    assert obstruction.status.value == "fail"

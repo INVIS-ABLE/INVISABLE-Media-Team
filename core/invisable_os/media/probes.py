@@ -230,9 +230,15 @@ def default_probes() -> list[VideoProbe]:
     OCR text (protected regions). Each degrades to a dry-run when its tool is absent.
     """
     # Imported here to avoid a circular import (region_probe imports from video_qc).
-    from invisable_os.media.region_probe import OCRTextProbe, OpenCVFaceProbe
+    from invisable_os.media.region_probe import (
+        ObjectRegionProbe,
+        OCRTextProbe,
+        OpenCVFaceProbe,
+    )
 
-    return [FFmpegProbe(), WhisperProbe(), OpenCVFaceProbe(), OCRTextProbe()]
+    return [
+        FFmpegProbe(), WhisperProbe(), OpenCVFaceProbe(), OCRTextProbe(), ObjectRegionProbe(),
+    ]
 
 
 def probe_video(

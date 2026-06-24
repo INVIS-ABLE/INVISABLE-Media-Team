@@ -169,7 +169,14 @@ dry-run** — so the pipeline runs anywhere and only measures for real on the GP
   Uses OpenCV's **BSD-licensed Haar cascade — not Ultralytics YOLO** (AGPL, blocked by
   the model-licence gate).
 - **OCR (Tesseract)** → `RegionKind.ON_SCREEN_TEXT` regions. ✅ wired (`OCRTextProbe`).
-- Hands/tools/products and logos → `Region`s remain a seam for an AGPL-safe object detector.
+- **Object detection** → tools/products → `RegionKind.HAND_TOOL_PRODUCT`, logos →
+  `RegionKind.LOGO`/`SPONSOR_PRODUCT`. ✅ wired (`ObjectRegionProbe`). The default
+  backend is **OpenCV DNN (BSD)** loading a permissively-licensed model via the
+  `OBJECT_DETECT_MODEL` env — deliberately **not Ultralytics YOLO** (AGPL). A configurable
+  `label_map` turns detector class labels into protected region kinds.
+
+All five probes degrade to a no-op dry-run when their tool/model isn't present, so the
+gate runs anywhere; the geometry/parsing is pure and unit-tested without the binaries.
 
 ```python
 from invisable_os.media.probes import probe_video       # FFmpeg + Whisper + OpenCV + OCR
