@@ -29,6 +29,7 @@ from invisable_os.services.scheduler import publish_due, schedule_to_postiz
 from invisable_os.services.scheduling import calendar, schedule_next, suggest_post_times
 from invisable_os.services.selfcheck import SelfCheckReport, run_self_check
 from invisable_os.services.source_scan import gather_topics, seed_default_sources
+from invisable_os.services.split_test import build_split, format_leaderboard
 from invisable_os.services.swarm import (
     SWARM_BOTS,
     AgentSwarm,
@@ -73,6 +74,8 @@ __all__ = [
     "failsafe_status",
     "launch_campaign",
     "BigCampaign",
+    "build_split",
+    "format_leaderboard",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
