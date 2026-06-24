@@ -25,6 +25,7 @@ from invisable_os.services.fact_check import (
 from invisable_os.services.insights import theme_alerts
 from invisable_os.services.media import assemble_post, finish_post, produce_media
 from invisable_os.services.metrics import sync_metrics
+from invisable_os.services.newsroom import newsroom_brief
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due, schedule_to_postiz
 from invisable_os.services.scheduling import calendar, schedule_next, suggest_post_times
@@ -79,6 +80,7 @@ __all__ = [
     "format_leaderboard",
     "triage_comment",
     "triage_comments",
+    "newsroom_brief",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
