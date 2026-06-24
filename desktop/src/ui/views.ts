@@ -89,7 +89,7 @@ function postCard(it: QueueItem, refresh: () => void): HTMLElement {
   if (status === "pending_review" || status === "needs_improvement") {
     actions.push(btn("Approve", "btn--ok", () => void after(act.approve(it.id))));
     actions.push(btn("Reject", "btn--bad", () => void after(act.reject(it.id))));
-    actions.push(btn("Regenerate", "btn--ghost", () => void after(act.regeneratePost(it.id, titleOf(it)))));
+    actions.push(btn("Regenerate", "btn--ghost", () => void after(act.regenerateInPlace(it.id))));
   }
   if (status === "approved") {
     actions.push(btn("Schedule", "btn--info", () => void after(act.schedule(it.id))));

@@ -228,6 +228,26 @@ def test_calendar_groups_scheduled_posts_by_day():
     assert any(i["id"] == item_id for i in cal[day])
 
 
+def test_post_regenerate_in_place_swaps_content_same_id():
+    item_id = _seed_post()
+    r = client.post(
+        f"/api/posts/{item_id}/regenerate",
+        json={"brief": "a warm funny post about chronic fatigue at work"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    # Same queue item, content replaced by a gate-passed tournament winner.
+    assert body["post"]["id"] == item_id
+    assert body["post"]["candidate"]["body"]  # non-empty regenerated body
+    assert "score" in body
+
+
+def test_post_regenerate_missing_id_is_404():
+    r = client.post("/api/posts/nope/regenerate", json={})
+    assert r.status_code == 404
+
+
 def test_post_replace_media_records_and_points_at_asset():
     item_id = _seed_post()
     r = client.post(
