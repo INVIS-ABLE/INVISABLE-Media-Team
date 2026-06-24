@@ -1,0 +1,158 @@
+# INVISABLE® AI Media Agency OS
+
+> The central operating system of the INVISABLE® movement — a unified, founder-led
+> media platform that grows awareness of invisible illness, builds the INVISABLE®
+> brand, supports the community, and increases the recognition of founder
+> **Stephen Garnham** as a consequence of genuine impact.
+
+INVISABLE OS is **one platform**, not a collection of disconnected tools. Every
+engine reads from and writes back to a shared memory — **`INVISABLE_BRAIN`** — so
+the system compounds what it learns over time.
+
+---
+
+## Why this exists
+
+Invisible illnesses are real, widespread, and under-recognised. INVISABLE® is a
+movement to change that. This operating system is the machine that runs the
+movement's media presence at scale **without ever trading trust for reach**.
+
+### The Prime Directive
+
+> **If a decision increases reach but damages trust, reject it.**
+>
+> **If a decision increases awareness, trust, community value, and founder
+> recognition simultaneously, prioritise it.**
+
+This rule is not a slogan. It is encoded as a hard gate
+([`guardrails`](core/invisable_os/guardrails/)) that every piece of content must
+pass before it can be published.
+
+---
+
+## What the platform optimises for
+
+| Always optimise for | Never optimise for |
+| ------------------- | ------------------ |
+| trust               | controversy        |
+| awareness           | outrage            |
+| authenticity        | misinformation     |
+| consistency         | spam               |
+| education           | fake engagement    |
+| humour              | fake stories       |
+| community value     | fabricated testimonials |
+| long-term brand building | fabricated founder experiences |
+
+---
+
+## The Engines
+
+The platform is composed of cooperating engines, each a real module in
+[`core/invisable_os/engines`](core/invisable_os/engines/):
+
+| Engine | Responsibility |
+| ------ | -------------- |
+| **Content Tournament Engine** | Generate hundreds of candidates daily, then score → improve → rank → select only the highest-quality outputs. |
+| **Algorithm Watchtower** | Monitor platform performance and feed learning back into `INVISABLE_BRAIN`. |
+| **Cultural Intelligence Engine** | Understand British culture, humour, trades culture, football culture, and live social trends. |
+| **Intelligence Harvester** | Monitor *public* information sources, trend signals, creator content, and emerging opportunities. |
+| **Founder Engine** | Keep founder presence at ~80% of published content and grow founder recognition. |
+| **INVISABLE_BRAIN** | Shared long-term memory (vector + structured) that every engine learns from. |
+
+See [`docs/ENGINES.md`](docs/ENGINES.md) for the detailed design of each.
+
+---
+
+## Originality & ethics (non-negotiable)
+
+The platform **may** learn patterns, structures, formats, audience reactions, and
+content mechanics. The platform **must never**:
+
+- copy copyrighted works,
+- duplicate creator content,
+- impersonate people without authorisation,
+- fabricate stories, testimonials, or founder experiences.
+
+These rules are enforced in code, not just policy. See
+[`docs/VALUES.md`](docs/VALUES.md).
+
+---
+
+## The Stack
+
+INVISABLE OS orchestrates a self-hostable, mostly open stack. See
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`docker-compose.yml`](docker-compose.yml).
+
+| Layer | Tooling |
+| ----- | ------- |
+| Reasoning / LLMs | [Claude](https://claude.ai), [Ollama](https://ollama.com) (Qwen, DeepSeek) |
+| Orchestration | [n8n](https://n8n.io), this `core` API |
+| Memory | [PostgreSQL](https://www.postgresql.org), [ChromaDB](https://www.trychroma.com) |
+| Chat UI | [Open WebUI](https://openwebui.com) |
+| Tooling bridge | [Composio](https://composio.dev) |
+| Harvesting | [Firecrawl](https://firecrawl.dev), [Crawl4AI](https://github.com/unclecode/crawl4ai), [Feedly](https://feedly.com), [Google Trends](https://trends.google.com) |
+| Media | [ComfyUI](https://github.com/comfyanonymous/ComfyUI) + [Flux](https://blackforestlabs.ai), [ElevenLabs](https://elevenlabs.io), [Whisper](https://github.com/openai/whisper), [OpenCut](https://github.com/OpenCut-app/OpenCut) |
+| Publishing | [Postiz](https://postiz.com) |
+| Assets | [ResourceSpace](https://www.resourcespace.com) |
+| Ops | [Docker](https://www.docker.com), [Watchtower](https://containrrr.dev/watchtower), [Uptime Kuma](https://uptime.kuma.pet), [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel) |
+
+---
+
+## Quick start
+
+```bash
+# 1. Configure
+cp .env.example .env        # fill in keys (the platform runs degraded but works without them)
+
+# 2. Run the core API + tests locally (no Docker needed)
+cd core
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+pytest                      # deterministic engine logic is fully tested
+uvicorn invisable_os.main:app --reload
+
+# 3. Or bring up the whole stack
+docker compose up -d core postgres chroma   # minimal
+docker compose up -d                         # full agency OS
+```
+
+Then open the API docs at <http://localhost:8080/docs> and try a tournament:
+
+```bash
+curl -s -X POST localhost:8080/v1/tournament/run \
+  -H 'content-type: application/json' \
+  -d '{"brief": "Explain that fatigue in invisible illness is not laziness", "platform": "instagram", "count": 24}' | jq
+```
+
+---
+
+## Repository layout
+
+```
+.
+├── core/                     # The INVISABLE OS application (Python / FastAPI)
+│   └── invisable_os/
+│       ├── engines/          # Tournament, Watchtower, Cultural, Harvester, Founder
+│       ├── brain/            # INVISABLE_BRAIN shared memory
+│       ├── guardrails/       # The Prime Directive, encoded
+│       ├── llm/              # Claude + Ollama clients (degrade gracefully)
+│       ├── models/           # Domain models (content, scores, metrics)
+│       └── api/              # HTTP surface
+├── db/schema.sql             # PostgreSQL schema
+├── n8n/workflows/            # Automation workflows (daily content cycle, harvesting)
+├── docs/                     # Architecture, values, engines, deployment
+├── docker-compose.yml        # Full self-hostable stack
+└── .env.example
+```
+
+---
+
+## Status
+
+This is the **foundation** of the operating system: the architecture, the shared
+memory, the engines with real (tested) selection and guardrail logic, and the
+stack orchestration are in place and runnable. LLM- and platform-API-dependent
+steps degrade gracefully to deterministic behaviour so the system is testable and
+demonstrable without external credentials.
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what is wired vs. what is next.
