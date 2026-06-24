@@ -6,8 +6,14 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+const apiKey = () => { try { return localStorage.getItem("invisable_api_key") || ""; } catch { return ""; } };
+
 async function api(path, opts = {}) {
-  const res = await fetch(API + path, { headers: { "content-type": "application/json" }, ...opts });
+  const headers = { "content-type": "application/json", ...(opts.headers || {}) };
+  const key = apiKey();
+  if (key) headers["X-API-Key"] = key;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) throw new Error(`401 — set your API key in Values → Access`);
   if (!res.ok) throw new Error(`${res.status} ${path}`);
   return res.status === 204 ? null : res.json();
 }
@@ -175,7 +181,16 @@ views.values = async (root) => {
       <div class="card"><h3>Never optimise for</h3><ul>${v.never_optimise_for.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <div class="card"><h3>Never do</h3><ul>${v.never_do.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <div class="card"><h3>Content mix</h3><ul>${Object.entries(mix).map(([k, val]) => `<li>${esc(k)}: ${Math.round(val * 100)}%</li>`).join("")}</ul></div>
+      <div class="card"><h3>Access</h3>
+        <p class="muted">Only needed if the server sets <code>INVISABLE_API_KEY</code>. Stored locally in this browser and sent as <code>X-API-Key</code>.</p>
+        <input id="apikey" type="password" placeholder="API key" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit" />
+        <div class="actions" style="margin-top:8px"><button class="btn" id="savekey">Save key</button><button class="btn ghost" id="clearkey">Clear</button></div>
+      </div>
     </div>`;
+  const input = $("#apikey", root);
+  input.value = apiKey();
+  $("#savekey", root).onclick = () => { try { localStorage.setItem("invisable_api_key", input.value.trim()); toast("API key saved"); } catch { toast("Could not save key"); } };
+  $("#clearkey", root).onclick = () => { try { localStorage.removeItem("invisable_api_key"); input.value = ""; toast("API key cleared"); } catch {} };
 };
 
 views.integrations = async (root) => {

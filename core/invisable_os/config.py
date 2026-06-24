@@ -52,6 +52,18 @@ class Settings(BaseSettings):
         return bool(os.getenv("ANTHROPIC_API_KEY"))
 
     @property
+    def api_key(self) -> str | None:
+        """Optional API key gating the /v1 surface.
+
+        When ``INVISABLE_API_KEY`` is unset the API is open (the offline/dev
+        default); when set, every /v1 request must present it via ``X-API-Key``.
+        Read live so it can be toggled without rebuilding the app.
+        """
+        import os
+
+        return os.getenv("INVISABLE_API_KEY") or None
+
+    @property
     def anthropic_api_key(self) -> str | None:
         import os
 
