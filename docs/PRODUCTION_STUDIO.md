@@ -154,12 +154,29 @@ report.summary()       # {"passed": ..., "failures": [...], "warnings": [...], "
 
 ### Where the real probes plug in
 
-The gate is pure logic; the detectors are the integration seam:
+The gate is pure logic; the detectors are the integration seam
+([`media/probes.py`](../core/invisable_os/media/probes.py)). Each follows the renderer
+idiom — **use the real tool when it's installed, else pass the spec through as a
+dry-run** — so the pipeline runs anywhere and only measures for real on the GPU box:
 
-- **FFmpeg** → container (w/h/fps/duration), `loudnorm`/`ebur128` (LUFS, true peak).
+- **FFmpeg** → container (w/h/fps/duration) via `ffprobe`, loudness + true peak via
+  `ebur128`. ✅ wired (`FFmpegProbe`).
 - **Whisper / faster-whisper** → transcript + caption cues for accuracy & timing.
-- **OpenCV / YOLO (Ultralytics)** → faces, hands/tools/products, logos → `Region`s.
-- **OCR (PaddleOCR / Tesseract)** → on-screen text regions → `Region`s.
+  ✅ wired (`WhisperProbe`).
+- **OpenCV / YOLO (Ultralytics)** → faces, hands/tools/products, logos → `Region`s. *(seam ready)*
+- **OCR (PaddleOCR / Tesseract)** → on-screen text regions → `Region`s. *(seam ready)*
+
+```python
+from invisable_os.media.probes import probe_video
+from invisable_os.media.video_qc import VideoQualityGate
+
+spec = probe_video("render.mp4")          # FFmpeg+Whisper fill in w/h/fps/loudness/captions
+report = VideoQualityGate().check(spec)    # …then the gate runs on the measured spec
+```
+
+`POST /v1/video/probe` exposes the same `probe → gate` flow over HTTP for a
+server-local path. The parsing (`parse_ffprobe`, `parse_ebur128`) is pure and
+unit-tested against captured tool output, so it's verified even without the binaries.
 
 See [TOOL_INTEGRATION_REVIEW.md](./TOOL_INTEGRATION_REVIEW.md) for the licence,
 security, maintenance and Docker assessment of each, and whether to integrate it

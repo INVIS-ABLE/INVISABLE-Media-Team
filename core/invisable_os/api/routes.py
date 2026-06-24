@@ -24,6 +24,7 @@ from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
+from invisable_os.media.probes import probe_video
 from invisable_os.media.safe_area import Surface, VisualLayoutAgent, get_template
 from invisable_os.media.video_qc import RegionModel, VideoQualityGate, VideoSpec
 from invisable_os.models.content import ContentCandidate, ContentFormat, Platform, QueueStatus
@@ -425,6 +426,22 @@ def place_caption(req: PlaceCaptionRequest) -> dict:
 def video_qc(spec: VideoSpec) -> dict:
     """Run the full pre-approval video quality gate over a structured clip spec."""
     return VideoQualityGate().check(spec).summary()
+
+
+class ProbeRequest(BaseModel):
+    path: str  # server-local path to the rendered clip (e.g. on the GPU box)
+    spec: VideoSpec | None = None  # annotations the probes can't infer
+
+
+@router.post("/v1/video/probe")
+def video_probe(req: ProbeRequest) -> dict:
+    """Probe a rendered clip (FFmpeg + Whisper) then run the quality gate.
+
+    ``probe_backend`` in the returned spec is ``ffmpeg`` when the real tools ran and
+    ``dry-run`` when they aren't installed (the spec passes through unchanged).
+    """
+    spec = probe_video(req.path, req.spec)
+    return {"spec": spec.model_dump(), "report": VideoQualityGate().check(spec).summary()}
 
 
 def _candidate_from(req: IdeaRequest) -> ContentCandidate:

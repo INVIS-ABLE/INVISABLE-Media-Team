@@ -12,6 +12,12 @@ media library, ready for the approval queue.
 
 from invisable_os.media.assembly import AssembleResult, VideoAssembler, build_command
 from invisable_os.media.base import Renderer, RenderResult
+from invisable_os.media.probes import (
+    FFmpegProbe,
+    WhisperProbe,
+    default_probes,
+    probe_video,
+)
 from invisable_os.media.producer import MediaProducer
 from invisable_os.media.safe_area import (
     Surface,
@@ -33,4 +39,8 @@ __all__ = [
     "VideoAssembler",
     "AssembleResult",
     "build_command",
+    "FFmpegProbe",
+    "WhisperProbe",
+    "default_probes",
+    "probe_video",
 ]
