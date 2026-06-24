@@ -139,14 +139,30 @@ def harvest(req: HarvestRequest) -> dict:
 
 @router.post("/v1/watchtower/ingest")
 def watchtower_ingest(req: WatchtowerRequest) -> dict:
-    """Ingest performance signals, learn, and compute the Founder Recognition Index."""
+    """Ingest performance signals, learn, and compute the Founder Recognition Index.
+
+    The raw signals and the resulting Founder Recognition Index are persisted, so
+    recognition can be tracked over time (see ``GET /v1/founder/recognition``).
+    """
     watchtower = AlgorithmWatchtower()
     report = watchtower.ingest(req.signals)
+    repo = get_repository()
+    for s in req.signals:
+        repo.record_signal(s.candidate_id, s.platform, s.metric.value, s.value, s.themes)
+    repo.record_founder_recognition(report.founder_recognition_index, report.totals)
     return {
         "totals": report.totals,
         "founder_recognition_index": report.founder_recognition_index,
         "learnings": report.learnings,
     }
+
+
+@router.get("/v1/founder/recognition")
+def founder_recognition() -> dict:
+    """The Founder Recognition Index over time, as ingested by the Watchtower."""
+    history = get_repository().list_founder_recognition()
+    latest = history[-1]["index_value"] if history else 0.0
+    return {"latest": latest, "points": len(history), "history": history}
 
 
 class DailyRequest(BaseModel):
