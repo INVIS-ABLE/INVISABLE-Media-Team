@@ -14,7 +14,11 @@ import logging
 from invisable_os.engines import (
     AlgorithmWatchtower,
     CommunityEngagement,
+    ContentFlywheel,
+    DailyContentDirector,
     IntelligenceHarvester,
+    MissionEngine,
+    QualityEngine,
 )
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
@@ -71,6 +75,26 @@ def main() -> None:
     for learning in report.learnings:
         print(f"  • learned: {learning}")
     print(f"  Founder Recognition Index: {report.founder_recognition_index}")
+
+    _rule("5. Mission Advisor + Quality + Flywheel on the top winner")
+    if result.winners:
+        seed = result.winners[0].candidate
+        mission = MissionEngine().advise(seed)
+        quality = QualityEngine().score(seed)
+        flywheel = ContentFlywheel().spin(seed)
+        print(f"  seed: {seed.hook[:55]}")
+        print(f"  mission: total={mission.total()} verdict={mission.verdict}")
+        print(f"  quality: avg={quality.average()}/10  passes_bar={quality.passes()}  "
+              f"weakest={quality.weakest()[0]}")
+        print(f"  flywheel: 1 idea → {len(flywheel)} assets "
+              f"({', '.join(a.kind for a in flywheel.assets)})")
+
+    _rule("6. Daily Output System (20 posts → ~140 assets)")
+    plan = DailyContentDirector().plan_day(candidates_per_slot=8).summary()
+    print(f"  posts={plan['total']}  assets={plan['total_assets']}  "
+          f"needs_improvement={plan['needs_improvement']}  "
+          f"needs_human_review={plan['needs_human_review']}")
+    print(f"  by pillar: {plan['by_pillar']}")
 
     print("\nDone. Every external dependency degraded gracefully — no keys required.")
 

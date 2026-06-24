@@ -49,15 +49,29 @@ class ScoreCard(BaseModel):
 
 
 class GuardrailVerdict(BaseModel):
-    """The output of the hard-gate guardrail check."""
+    """The output of the hard-gate guardrail check.
+
+    ``violations`` are hard failures (block publication). ``risk_flags`` are
+    advisory — high-stakes content (medical/legal/benefits/sponsor/copyright) that
+    a human must review before publishing, but which is not auto-blocked.
+    ``swear_level`` records the strongest profanity detected (none/light/moderate/
+    strong) so downstream policy can decide.
+    """
 
     passed: bool
     violations: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    risk_flags: list[str] = Field(default_factory=list)
+    swear_level: str = "none"
 
     @property
     def blocked(self) -> bool:
         return not self.passed
+
+    @property
+    def needs_human_review(self) -> bool:
+        """Passed the hard gate but carries advisory risk flags."""
+        return self.passed and bool(self.risk_flags)
 
 
 class ScoredCandidate(BaseModel):

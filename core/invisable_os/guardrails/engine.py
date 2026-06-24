@@ -13,8 +13,17 @@ from invisable_os.guardrails.policy import (
     BANNED_EMOJI,
     ENGAGEMENT_BAIT_PHRASES,
     FABRICATION_TRIPWIRES,
+    FIRST_PERSON_MARKERS,
+    HARASSMENT_FRAMES,
     MEDICAL_OVERCLAIM_TRIPWIRES,
     PRIME_DIRECTIVE,
+    PUNCHING_DOWN_FRAMES,
+    RISK_CATEGORIES,
+    SLUR_BLOCKLIST,
+    SWEAR_WORDS_LIGHT,
+    SWEAR_WORDS_MODERATE,
+    SWEAR_WORDS_STRONG,
+    VULNERABLE_GROUP_TOKENS,
 )
 from invisable_os.models.content import ContentCandidate, ContentFormat
 from invisable_os.models.scoring import GuardrailVerdict
@@ -71,11 +80,97 @@ def check(candidate: ContentCandidate) -> GuardrailVerdict:
         if len(text) < 15:
             notes.append("Comment is very short — ensure it is genuinely constructive.")
 
+    # 7. Humour brand-safety — laugh WITH the community, never punch down.
+    violations.extend(humour_violations(text))
+
+    # 8. Advisory risk scan (high-stakes content → human review, not a block).
+    risk_flags = risk_scan(text)
+    swear = swear_level(text)
+
     passed = len(violations) == 0
     if passed:
         notes.append("Passed all hard gates. Prime Directive: " + PRIME_DIRECTIVE)
+    if risk_flags:
+        notes.append("Advisory: high-stakes content — requires human review before publishing.")
 
-    return GuardrailVerdict(passed=passed, violations=violations, notes=notes)
+    return GuardrailVerdict(
+        passed=passed,
+        violations=violations,
+        notes=notes,
+        risk_flags=risk_flags,
+        swear_level=swear,
+    )
+
+
+def humour_violations(text: str) -> list[str]:
+    """Detect humour that crosses the line: slurs, punching down, harassment.
+
+    Self-deprecating and situational humour (first-person, about the founder's own
+    experience or about situations) is explicitly allowed and never flagged here.
+    """
+    lowered = text.lower()
+    violations: list[str] = []
+
+    # Slurs / hate terms — whole-word match so ordinary words aren't caught.
+    words = set(_words(lowered))
+    for slur in SLUR_BLOCKLIST:
+        if " " in slur:
+            if slur in lowered:
+                violations.append(f"Slur / hate term present: '{slur}'.")
+        elif slur in words:
+            violations.append(f"Slur / hate term present: '{slur}'.")
+
+    # Harassment of an individual.
+    for frame in HARASSMENT_FRAMES:
+        if frame in lowered:
+            violations.append(f"Harassment of an individual: '{frame}'.")
+
+    # Punching down: a derogatory frame aimed at a vulnerable group in the third
+    # person. If the sentence is self-referential (first person), it's allowed.
+    for sentence in _sentences(lowered):
+        if any(fp in sentence for fp in FIRST_PERSON_MARKERS):
+            continue  # self-deprecating / shared frustration — allowed
+        targets_group = any(g in sentence for g in VULNERABLE_GROUP_TOKENS)
+        is_derogatory = any(f in sentence for f in PUNCHING_DOWN_FRAMES)
+        if targets_group and is_derogatory:
+            violations.append("Punching down: mocking a vulnerable group in the third person.")
+            break
+
+    return violations
+
+
+def risk_scan(text: str) -> list[str]:
+    """Advisory scan for high-stakes content needing human review (never blocks)."""
+    lowered = text.lower()
+    flags: list[str] = []
+    for category, markers in RISK_CATEGORIES.items():
+        if any(m in lowered for m in markers):
+            flags.append(category)
+    return flags
+
+
+def swear_level(text: str) -> str:
+    """Return the strongest profanity level present: none/light/moderate/strong."""
+    words = set(_words(text.lower()))
+    if words & set(SWEAR_WORDS_STRONG):
+        return "strong"
+    if words & set(SWEAR_WORDS_MODERATE):
+        return "moderate"
+    if words & set(SWEAR_WORDS_LIGHT):
+        return "light"
+    return "none"
+
+
+def _words(text: str) -> list[str]:
+    import re
+
+    return re.findall(r"[a-z']+", text)
+
+
+def _sentences(text: str) -> list[str]:
+    import re
+
+    return [s.strip() for s in re.split(r"[.!?\n]", text) if s.strip()]
 
 
 def explain(verdict: GuardrailVerdict) -> str:

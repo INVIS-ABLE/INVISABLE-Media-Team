@@ -9,12 +9,18 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from invisable_os.agents import AGENT_REGISTRY, route
 from invisable_os.brain import get_brain
 from invisable_os.engines import (
     AlgorithmWatchtower,
     CommunityEngagement,
+    ContentFlywheel,
+    DailyContentDirector,
     IntelligenceHarvester,
+    MissionEngine,
+    QualityEngine,
 )
+from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
@@ -123,6 +129,87 @@ def watchtower_ingest(req: WatchtowerRequest) -> dict:
         "founder_recognition_index": report.founder_recognition_index,
         "learnings": report.learnings,
     }
+
+
+class DailyRequest(BaseModel):
+    candidates_per_slot: int = Field(default=16, ge=4, le=200)
+
+
+class IdeaRequest(BaseModel):
+    brief: str
+    hook: str = ""
+    body: str = ""
+    platform: Platform = Platform.INSTAGRAM
+    founder_centred: bool = False
+
+
+@router.post("/v1/daily/plan")
+def daily_plan(req: DailyRequest) -> dict:
+    """Run the whole agency for a day: 20 posts, each gated, scored, and spun."""
+    director = DailyContentDirector()
+    plan = director.plan_day(candidates_per_slot=req.candidates_per_slot)
+    return plan.summary()
+
+
+@router.post("/v1/mission/advise")
+def mission_advise(req: IdeaRequest) -> dict:
+    """Score an idea against the five mission impacts (the Mission Advisor)."""
+    candidate = _candidate_from(req)
+    return MissionEngine().advise(candidate).model_dump()
+
+
+@router.post("/v1/quality/score")
+def quality_score(req: IdeaRequest) -> dict:
+    """Score an idea across the 11 quality dimensions; report if it passes the bar."""
+    candidate = _candidate_from(req)
+    q = QualityEngine().score(candidate)
+    return {**q.model_dump(), "average": q.average(), "passes": q.passes(), "weakest": q.weakest()}
+
+
+@router.post("/v1/flywheel/spin")
+def flywheel_spin(req: IdeaRequest) -> dict:
+    """Spin one idea into a family of assets."""
+    candidate = _candidate_from(req)
+    out = ContentFlywheel().spin(candidate)
+    return {
+        "seed_hook": out.seed_hook,
+        "future_idea": out.future_idea,
+        "assets": [a.__dict__ for a in out.assets],
+    }
+
+
+@router.get("/v1/personality/mix")
+def personality_mix() -> dict:
+    """The content personality mix the brand publishes against."""
+    return {pillar.value: share for pillar, share in CONTENT_PERSONALITY_MIX.items()}
+
+
+@router.get("/v1/agents")
+def list_agents() -> dict:
+    """The specialist agent library."""
+    return {
+        "count": len(AGENT_REGISTRY),
+        "agents": [
+            {"name": a.name, "department": a.department.value, "role": a.role}
+            for a in AGENT_REGISTRY
+        ],
+    }
+
+
+@router.get("/v1/agents/route")
+def route_agents(task: str) -> dict:
+    """Route a free-text task to the best-matched specialist agents."""
+    return {"task": task, "agents": [a.name for a in route(task)]}
+
+
+def _candidate_from(req: IdeaRequest) -> ContentCandidate:
+    return ContentCandidate(
+        brief=req.brief,
+        platform=req.platform,
+        hook=req.hook,
+        body=req.body or req.brief,
+        founder_centred=req.founder_centred,
+    )
 
 
 @router.get("/v1/brain/stats")
