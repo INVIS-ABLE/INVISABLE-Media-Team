@@ -37,30 +37,18 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.INVISABLE_CORE_URL}}/v1/media/produce/{{$json.id}}",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/media/finish/{{$json.id}}",
         "options": {}
       },
-      "id": "produce",
-      "name": "Render flywheel assets",
+      "id": "finish",
+      "name": "Finish post (produce + assemble)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [ 960, 300 ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{$env.INVISABLE_CORE_URL}}/v1/media/assemble/{{ $('Approved video briefs').item.json.id }}",
-        "options": {}
-      },
-      "id": "assemble",
-      "name": "Assemble final cutdown",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [ 1200, 300 ]
-    },
-    {
-      "parameters": {
-        "content": "Polls for approved items and renders them: ComfyUI/Flux (image), ElevenLabs (voiceover), Whisper (captions), FFmpeg (assembly). Each renderer falls back to dry-run when its backend isn't configured, so the workflow is safe to run anywhere. Finished assets land in the media library (and DAM via the integrations).",
+        "content": "Polls for approved items and finishes each in one call: /v1/media/finish produces the flywheel assets (ComfyUI/Flux image, ElevenLabs voiceover, Whisper captions) then assembles the final cutdown (FFmpeg). Add ?dam=true to also archive to ResourceSpace. Each backend falls back to dry-run when unconfigured, so the workflow is safe to run anywhere — finished video lands in the media library before its slot.",
         "height": 180,
         "width": 360
       },
@@ -74,8 +62,7 @@
   "connections": {
     "Every 15 minutes": { "main": [ [ { "node": "Get approved items", "type": "main", "index": 0 } ] ] },
     "Get approved items": { "main": [ [ { "node": "Approved video briefs", "type": "main", "index": 0 } ] ] },
-    "Approved video briefs": { "main": [ [ { "node": "Render flywheel assets", "type": "main", "index": 0 } ] ] },
-    "Render flywheel assets": { "main": [ [ { "node": "Assemble final cutdown", "type": "main", "index": 0 } ] ] }
+    "Approved video briefs": { "main": [ [ { "node": "Finish post (produce + assemble)", "type": "main", "index": 0 } ] ] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [ { "name": "invisable-os" } ]
