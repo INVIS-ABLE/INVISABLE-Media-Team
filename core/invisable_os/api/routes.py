@@ -62,6 +62,7 @@ from invisable_os.services import (
     finish_post,
     format_leaderboard,
     gather_topics,
+    humanise,
     launch_campaign,
     newsroom_brief,
     post_attribution,
@@ -215,6 +216,16 @@ def newsroom(req: NewsroomRequest) -> dict:
         count=req.count,
         persist=req.persist,
     )
+
+
+class HumaniseRequest(BaseModel):
+    text: str
+
+
+@router.post("/v1/humanise")
+def humanise_text(req: HumaniseRequest) -> dict:
+    """Humanisation layer: strip AI tells and score how human the copy reads."""
+    return humanise(req.text)
 
 
 @router.post("/v1/harvest")
