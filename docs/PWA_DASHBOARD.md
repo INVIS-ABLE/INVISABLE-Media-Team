@@ -87,6 +87,7 @@ Full design in [`REMIX_ENGINE.md`](REMIX_ENGINE.md).
 | **Pop Culture Index** | Film/TV/meme/sayings/phrases with paraphrase-safe versions + copyright risk | `GET/POST /v1/popculture`, `GET/POST /v1/meme-formats` |
 | **Asset Library** | Owned/approved source clips, founder/ambassador/partner assets, B-roll, voiceovers, subtitles (rights-classified) | `GET /v1/rights-assets` |
 | **Voiceover Queue** | Script · voice · ElevenLabs status · audio · subtitle status · export status | `POST /v1/voiceover/create` |
+| **✅ Gate** | Run a clip spec through the Video Quality Gate; see every check pass/warn/fail, plus the generation-model licence registry (commercial vs blocked) | `POST /v1/video/qc`, `GET /v1/licensing/models` |
 
 ### The 15 buttons
 

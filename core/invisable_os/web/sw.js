@@ -1,6 +1,6 @@
 // INVISABLE OS service worker — caches the app shell for offline/installable use.
 // API calls (/v1, /health) always go to the network so data is never stale.
-const CACHE = "invisable-os-v1";
+const CACHE = "invisable-os-v2";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "manifest.webmanifest", "icon.svg"];
 
 self.addEventListener("install", (e) => {
