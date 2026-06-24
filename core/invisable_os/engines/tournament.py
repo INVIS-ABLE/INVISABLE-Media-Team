@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from invisable_os.brain import Memory, get_brain
 from invisable_os.engines.founder import FounderEngine
 from invisable_os.engines.generator import Generator
+from invisable_os.engines.judge import LLMJudge
 from invisable_os.engines.scoring import Scorer
 from invisable_os.guardrails import check
 from invisable_os.models.content import ContentCandidate, ContentFormat, Platform
@@ -67,10 +68,13 @@ class ContentTournamentEngine:
         generator: Generator | None = None,
         scorer: Scorer | None = None,
         founder: FounderEngine | None = None,
+        judge: LLMJudge | None = None,
     ) -> None:
         self.generator = generator or Generator()
         self.scorer = scorer or Scorer()
         self.founder = founder or FounderEngine()
+        # The judge self-disables offline, so this is a no-op without a live model.
+        self.judge = judge if judge is not None else LLMJudge()
         self.brain = get_brain()
 
     def run(
@@ -83,11 +87,19 @@ class ContentTournamentEngine:
         content_format: ContentFormat = ContentFormat.SHORT_VIDEO,
         improve_top: int = 6,
         published: list[ContentCandidate] | None = None,
+        rebalance_founder: bool = True,
+        angle: str | None = None,
+        judge_top: int = 8,
     ) -> TournamentResult:
-        """Execute one tournament and return the winners."""
+        """Execute one tournament and return the winners.
+
+        ``rebalance_founder`` lets callers (e.g. the Daily Director, whose editorial
+        brief already controls the founder/pillar mix per slot) select purely on the
+        values score without the Founder Engine promoting founder content.
+        """
         # 1. Generate the field.
         field_ = self.generator.generate(
-            brief, platform, count=count, content_format=content_format
+            brief, platform, count=count, content_format=content_format, angle=angle
         )
 
         # 2. Hard gate + initial score. A blocked candidate is still recorded (as a
@@ -122,13 +134,23 @@ class ContentTournamentEngine:
         )
         ranked = self._dedupe(ranked_all)
 
-        # 5. Select, then let the Founder Engine rebalance toward the target mix.
+        # 4b. LLM-judge pass: re-score the top contenders and blend with the floor,
+        #     then re-rank. No-op offline (judge.available is False).
+        if self.judge.available and ranked:
+            for sc in ranked[:judge_top]:
+                judged = self.judge.score(sc.candidate)
+                if judged is not None:
+                    sc.scorecard = self.judge.blend(sc.scorecard, judged)
+            ranked.sort(key=lambda s: s.total, reverse=True)
+
+        # 5. Select, then (optionally) let the Founder Engine rebalance toward the mix.
         chosen = ranked[: max(select, 0)]
-        rebalanced_candidates = self.founder.rebalance(
-            [s.candidate for s in chosen], published=published
-        )
-        order = {c.id: i for i, c in enumerate(rebalanced_candidates)}
-        chosen.sort(key=lambda s: order.get(s.candidate.id, 999))
+        if rebalance_founder:
+            rebalanced_candidates = self.founder.rebalance(
+                [s.candidate for s in chosen], published=published
+            )
+            order = {c.id: i for i, c in enumerate(rebalanced_candidates)}
+            chosen.sort(key=lambda s: order.get(s.candidate.id, 999))
 
         # 6. Remember the winners so the platform compounds what works.
         for w in chosen:

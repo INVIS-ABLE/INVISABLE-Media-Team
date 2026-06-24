@@ -13,6 +13,7 @@ The interface is intentionally tiny: ``complete(system, prompt)``.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 
@@ -28,6 +29,33 @@ class LLMResponse:
     text: str
     backend: str
     model: str
+
+
+@dataclass
+class JsonResponse:
+    """A structured completion. ``data`` is ``None`` when no model produced valid JSON."""
+
+    data: dict | None
+    backend: str
+    model: str
+
+
+def extract_json(text: str) -> dict | None:
+    """Best-effort: pull the first JSON object out of a model response."""
+    if not text:
+        return None
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.strip("`")
+        t = t[t.find("{"):] if "{" in t else t
+    start, end = t.find("{"), t.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return None
+    try:
+        obj = json.loads(t[start : end + 1])
+        return obj if isinstance(obj, dict) else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 class LLMClient:
@@ -62,6 +90,44 @@ class LLMClient:
 
         return self._complete_stub(prompt, system=system)
 
+    def complete_json(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        schema_hint: str = "",
+        max_tokens: int = 600,
+        prefer_fast: bool = False,
+    ) -> JsonResponse:
+        """Return a structured JSON completion (Claude → Ollama → stub→None).
+
+        ``data`` is ``None`` when no live model is configured or the output wasn't
+        valid JSON, so callers fall back to deterministic behaviour.
+        """
+        instruction = (
+            "\n\nReturn ONLY a single minified JSON object"
+            + (f" with keys: {schema_hint}." if schema_hint else ".")
+            + " No prose, no markdown, no code fences."
+        )
+        full = prompt + instruction
+
+        if self.settings.has_claude:
+            try:
+                resp = self._complete_claude(
+                    full, system=system, max_tokens=max_tokens, prefer_fast=prefer_fast
+                )
+                return JsonResponse(extract_json(resp.text), resp.backend, resp.model)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Claude JSON backend failed, falling back: %s", exc)
+
+        try:
+            resp = self._complete_ollama(full, system=system, max_tokens=max_tokens, as_json=True)
+            return JsonResponse(extract_json(resp.text), resp.backend, resp.model)
+        except Exception as exc:  # noqa: BLE001
+            log.info("Ollama JSON backend unavailable: %s", exc)
+
+        return JsonResponse(None, "stub", "deterministic-stub")
+
     # -- backends ------------------------------------------------------------
 
     def _complete_claude(
@@ -85,7 +151,7 @@ class LLMClient:
         return LLMResponse(text=text, backend="claude", model=model)
 
     def _complete_ollama(
-        self, prompt: str, *, system: str, max_tokens: int
+        self, prompt: str, *, system: str, max_tokens: int, as_json: bool = False
     ) -> LLMResponse:
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/generate"
         payload = {
@@ -95,6 +161,8 @@ class LLMClient:
             "stream": False,
             "options": {"num_predict": max_tokens},
         }
+        if as_json:
+            payload["format"] = "json"  # Ollama constrains output to valid JSON
         with httpx.Client(timeout=5.0) as client:
             resp = client.post(url, json=payload)
             resp.raise_for_status()

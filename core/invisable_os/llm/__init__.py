@@ -10,6 +10,12 @@ deterministic stub. This keeps the whole system testable and demonstrable offlin
 and means a missing API key never takes the agency OS down.
 """
 
-from invisable_os.llm.client import LLMClient, LLMResponse, get_llm
+from invisable_os.llm.client import (
+    JsonResponse,
+    LLMClient,
+    LLMResponse,
+    extract_json,
+    get_llm,
+)
 
-__all__ = ["LLMClient", "LLMResponse", "get_llm"]
+__all__ = ["LLMClient", "LLMResponse", "JsonResponse", "extract_json", "get_llm"]

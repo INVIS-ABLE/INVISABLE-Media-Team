@@ -68,15 +68,38 @@ honest state of each piece:
 - ✅ **Docker** — core self-bootstraps the DB and serves via the CLI; Postgres driver
   included. Runbook in [`OPERATIONS.md`](OPERATIONS.md).
 
-## Next (clearly scoped extensions)
+### Scheduling & media build (added)
 
-- ⏳ **Live generation at volume** — richer Claude/Ollama prompts + structured JSON
-  output parsing + an LLM-judge scoring pass on top of the deterministic floor.
-- ⏳ **Media pipeline** — ComfyUI/Flux image gen, ElevenLabs voice, Whisper
-  captions, OpenCut assembly, ResourceSpace asset library, wired to the flywheel.
+- ✅ **Posting-slot queue** (`scheduling/`) — weekly slots per channel, "fill the
+  next free slot" with timezone-aware slot computation and no double-booking. Tested.
+- ✅ **Channels & default schedule** — connected accounts + Mon–Fri × 3-slot default
+  at off-the-hour times. CLI `seed-channels` / `schedule`. Tested.
+- ✅ **Calendar** — scheduled posts grouped by day (`GET /v1/calendar`, CLI). Tested.
+- ✅ **Media pipeline** (`media/`) — ComfyUI/Flux, ElevenLabs, Whisper, passthrough
+  renderers with dry-run fallback; `MediaProducer` renders the flywheel into the
+  media library. Tested.
+- ✅ **Per-slot angle generation** — each daily slot generates in its editorial
+  angle, so the day spans distinct content (not 20 clones).
+- ✅ **Reference audit** — licences verified; patterns borrowed clean-room. See
+  [`REFERENCES.md`](REFERENCES.md), [`SCHEDULING.md`](SCHEDULING.md).
+
+### Generation build (added)
+
+- ✅ **Structured generation** — `LLMClient.complete_json` (Claude JSON / Ollama
+  `format:json`) + tolerant `extract_json`; the generator requests `{hook, body,
+  call_to_action}` and falls back to safe templates offline. Tested.
+- ✅ **LLM-judge** (`engines/judge.py`) — re-scores only the top contenders and
+  blends 50/50 with the deterministic floor; **self-disables offline** so tests stay
+  fast and behaviour is unchanged without a model. Wired into the tournament. Tested.
+- ✅ Docs: [`GENERATION.md`](GENERATION.md).
+
+## Next (clearly scoped extensions)
+- ⏳ **Real media rendering** — wire the ComfyUI graph submissions + ElevenLabs/
+  Whisper calls behind the now-stubbed renderers; OpenCut assembly; ResourceSpace library.
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
-- ⏳ **PWA front-end** — build the dashboard in [`PWA_DASHBOARD.md`](PWA_DASHBOARD.md)
-  against the now-operational API.
+- ✅ **PWA front-end** — installable dashboard (`core/invisable_os/web/`) served at
+  `/app`: Today / Queue / Calendar / Media / Agents / Values, wired to the API.
+  Tested. (Richer screens in [`PWA_DASHBOARD.md`](PWA_DASHBOARD.md) are next.)
 - ⏳ **Founder Recognition dashboard** — surface the index and presence view over time.
 
 ## Guiding principle for every extension

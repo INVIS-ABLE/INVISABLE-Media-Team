@@ -41,13 +41,23 @@ class Generator:
         platform: Platform,
         count: int = 24,
         content_format: ContentFormat = ContentFormat.SHORT_VIDEO,
+        angle: str | None = None,
     ) -> list[ContentCandidate]:
-        """Return ``count`` candidate pieces for ``brief``."""
+        """Return ``count`` candidate pieces for ``brief``.
+
+        If ``angle`` is given, every candidate is generated in that angle (used by the
+        Daily Director so each slot produces content matching its editorial intent);
+        otherwise the generator rotates through all angles.
+        """
         candidates: list[ContentCandidate] = []
         cultural_context = self.cultural.context_for(brief)
+        angle_map = dict(ANGLES)
 
         for i in range(count):
-            angle_key, angle_desc = ANGLES[i % len(ANGLES)]
+            if angle and angle in angle_map:
+                angle_key, angle_desc = angle, angle_map[angle]
+            else:
+                angle_key, angle_desc = ANGLES[i % len(ANGLES)]
             founder_centred = angle_key == "founder_voice"
             candidate = self._one(
                 brief=brief,
@@ -85,15 +95,28 @@ class Generator:
             f"Brief: {brief}\n"
             f"Platform: {platform.value}; Format: {content_format.value}\n"
             f"Angle: {angle_desc}\n"
+            f"Variation seed: {variant}\n"
             f"{cultural_context}\n\n"
-            "Return a hook line, a short body, and a gentle call to action."
+            "Write one original, on-brand piece: a scroll-stopping hook, a short body, "
+            "and a gentle call to action."
         )
-        response = self.llm.complete(prompt, system=system, max_tokens=400, prefer_fast=True)
+        resp = self.llm.complete_json(
+            prompt,
+            system=system,
+            schema_hint="hook, body, call_to_action",
+            max_tokens=400,
+            prefer_fast=True,
+        )
 
-        if response.backend == "stub":
+        data = resp.data or {}
+        hook = str(data.get("hook", "")).strip()
+        body = str(data.get("body", "")).strip()
+        cta = str(data.get("call_to_action", "")).strip()
+        backend, model = resp.backend, resp.model
+
+        if not (hook or body):  # stub or malformed → safe deterministic template
             hook, body, cta = self._template(brief, angle_key, founder_centred, variant)
-        else:
-            hook, body, cta = self._parse(response.text, brief, angle_key, founder_centred)
+            backend, model = "stub", "deterministic-stub"
 
         return ContentCandidate(
             brief=brief,
@@ -105,7 +128,7 @@ class Generator:
             founder_centred=founder_centred,
             original=True,
             themes=[angle_key, "invisible_illness"],
-            generator=f"{response.backend}:{response.model}",
+            generator=f"{backend}:{model}",
         )
 
     # -- offline templates: safe, original scaffolds -------------------------
@@ -166,16 +189,4 @@ class Generator:
         # Light variation so a field isn't identical, without changing meaning.
         if variant % 3 == 1:
             cta = cta.rstrip(".") + "."
-        return hook, body, cta
-
-    def _parse(
-        self, text: str, brief: str, angle_key: str, founder_centred: bool
-    ) -> tuple[str, str, str]:
-        """Best-effort parse of a model response into hook/body/cta."""
-        lines = [ln.strip() for ln in text.strip().splitlines() if ln.strip()]
-        if not lines:
-            return self._template(brief, angle_key, founder_centred, 0)
-        hook = lines[0]
-        cta = lines[-1] if len(lines) > 1 else ""
-        body = " ".join(lines[1:-1]) if len(lines) > 2 else (lines[1] if len(lines) > 1 else "")
         return hook, body, cta

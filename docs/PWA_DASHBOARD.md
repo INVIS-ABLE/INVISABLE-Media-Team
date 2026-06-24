@@ -4,6 +4,14 @@ A single installable progressive web app (phone · iPad · PC · browser), talki
 to the `core` API. It is the founder's cockpit: approve, regenerate, schedule, and
 see the whole org at a glance.
 
+> **Built and shipped.** A dependency-free PWA lives in
+> [`core/invisable_os/web/`](../core/invisable_os/web/) and is served by the API at
+> **`/app`** (run `invisable serve`, open <http://localhost:8080/app>). It is
+> installable (manifest + service worker, offline app-shell) and implements the
+> Today / Queue / Calendar / Media / Agents / Values screens against the endpoints
+> below. The richer screens in this document are the forward design; what's built
+> today is the working core of it.
+
 ## Navigation (left rail)
 
 ```
@@ -74,10 +82,10 @@ Full design in [`REMIX_ENGINE.md`](REMIX_ENGINE.md).
 | ------ | ------------ | --- |
 | **Scanner Dashboard** | The scan buttons (construction · invisible illness · autoimmune · tool theft · pop culture · TikTok · Instagram) | `POST /v1/scanner/scan`, `GET /v1/remix/modes` |
 | **Reference Inbox** | Scanned links/topics: title, source, topic, rights status, risk score, *generate* | `GET /v1/scanner/items`, `POST /v1/scanner/manual-link` |
-| **Rights Manager** | Set each asset's status (owned/licensed/CC/public-domain/consented/reference-only/blocked) | `GET /v1/media`, `PATCH /v1/media/{id}/rights`, `GET /v1/rights` |
+| **Rights Manager** | Set each asset's status (owned/licensed/CC/public-domain/consented/reference-only/blocked) | `GET /v1/rights-assets`, `PATCH /v1/rights-assets/{id}/rights`, `GET /v1/rights` |
 | **Remix Studio** | Topic/link/reference + platform + humour + type + voice + partner → parody/voiceover/shot-list/caption/hashtags/tags | `POST /v1/remix/create` |
 | **Pop Culture Index** | Film/TV/meme/sayings/phrases with paraphrase-safe versions + copyright risk | `GET/POST /v1/popculture`, `GET/POST /v1/meme-formats` |
-| **Asset Library** | Owned/approved clips, founder/ambassador/partner assets, B-roll, voiceovers, subtitles, exports | `GET /v1/media` |
+| **Asset Library** | Owned/approved source clips, founder/ambassador/partner assets, B-roll, voiceovers, subtitles (rights-classified) | `GET /v1/rights-assets` |
 | **Voiceover Queue** | Script · voice · ElevenLabs status · audio · subtitle status · export status | `POST /v1/voiceover/create` |
 
 ### The 15 buttons

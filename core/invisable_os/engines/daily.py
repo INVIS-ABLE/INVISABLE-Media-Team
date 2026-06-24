@@ -33,6 +33,7 @@ class DailySlot:
     platform: Platform
     content_format: ContentFormat
     brief: str
+    angle: str = ""  # generator angle that matches this slot's editorial intent
 
 
 @dataclass
@@ -90,6 +91,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.INSTAGRAM,
             ContentFormat.CAROUSEL,
             "Teach one concrete, honest thing about living with invisible illness",
+            angle="explainer",
         )
         for _ in range(3)
     ],
@@ -100,6 +102,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.INSTAGRAM,
             ContentFormat.TEXT_POST,
             "A relatable moment for tradespeople living with invisible illness",
+            angle="solidarity",
         )
         for _ in range(3)
     ],
@@ -110,6 +113,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.TIKTOK,
             ContentFormat.SHORT_VIDEO,
             "Warm, self-deprecating British humour about living with invisible illness",
+            angle="gentle_humour",
         )
         for _ in range(3)
     ],
@@ -120,6 +124,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.TIKTOK,
             ContentFormat.SHORT_VIDEO,
             "A TikTok/Reel script that raises awareness of invisible illness",
+            angle="myth_vs_reality",
         )
         for _ in range(3)
     ],
@@ -130,6 +135,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.INSTAGRAM,
             ContentFormat.CAROUSEL,
             "An explainer carousel that myth-busts a misconception about invisible illness",
+            angle="reframe",
         )
         for _ in range(2)
     ],
@@ -140,6 +146,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.INSTAGRAM,
             ContentFormat.TEXT_POST,
             "A partner-safe post that supports the trades community (no overclaiming)",
+            angle="practical_tip",
         )
         for _ in range(2)
     ],
@@ -150,6 +157,7 @@ DAILY_BRIEF: list[DailySlot] = [
             Platform.TIKTOK,
             ContentFormat.SHORT_VIDEO,
             "A genuine reaction to a current trend, tied back to the mission",
+            angle="community_prompt",
         )
         for _ in range(2)
     ],
@@ -159,6 +167,7 @@ DAILY_BRIEF: list[DailySlot] = [
         Platform.INSTAGRAM,
         ContentFormat.SHORT_VIDEO,
         "The founder's genuine advocacy and why INVISABLE exists",
+        angle="founder_voice",
     ),
     DailySlot(
         "comment_response",
@@ -166,6 +175,7 @@ DAILY_BRIEF: list[DailySlot] = [
         Platform.INSTAGRAM,
         ContentFormat.TEXT_POST,
         "A supportive response to a common community question or misconception",
+        angle="community_prompt",
     ),
 ]
 
@@ -196,6 +206,10 @@ class DailyContentDirector:
                 select=1,
                 content_format=slot.content_format,
                 published=published,
+                # The daily brief already controls the founder/pillar mix per slot,
+                # so don't let per-slot founder promotion override slot intent.
+                rebalance_founder=(slot.pillar == ContentPillar.FOUNDER),
+                angle=slot.angle or None,
             )
             if not result.winners:
                 continue

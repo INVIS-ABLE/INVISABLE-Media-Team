@@ -306,21 +306,23 @@ def remix_job_action(job_id: str, action: str) -> dict:
     return job or {"error": "not found", "id": job_id}
 
 
-# --- media / rights manager -------------------------------------------------
+# --- rights manager (the rights-classified asset library) -------------------
+# Namespaced under /rights-assets so it doesn't collide with the produced-media
+# library at /v1/media (which is the rendered-output pipeline, a different concept).
 
 
-@remix_router.post("/media/upload")
+@remix_router.post("/rights-assets")
 def media_upload(req: MediaUploadRequest) -> dict:
-    """Register a media asset with its rights metadata (no binary upload here)."""
-    return {"id": get_repository().add_media_asset(req.model_dump())}
+    """Register a rights-classified source asset (no binary upload here)."""
+    return {"id": get_repository().add_rights_asset(req.model_dump())}
 
 
-@remix_router.get("/media")
+@remix_router.get("/rights-assets")
 def list_media(rights_status: str | None = None) -> dict:
-    return {"assets": get_repository().list_media_assets(rights_status=rights_status)}
+    return {"assets": get_repository().list_rights_assets(rights_status=rights_status)}
 
 
-@remix_router.patch("/media/{asset_id}/rights")
+@remix_router.patch("/rights-assets/{asset_id}/rights")
 def patch_media_rights(asset_id: str, req: RightsPatchRequest) -> dict:
     updated = get_repository().set_asset_rights(
         asset_id, req.rights_status.value, licence_notes=req.licence_notes
@@ -335,7 +337,7 @@ def patch_media_rights(asset_id: str, req: RightsPatchRequest) -> dict:
 def voiceover_create(req: VoiceoverCreateRequest) -> dict:
     """Build a voiceover job over an APPROVED asset. Gated on rights."""
     repo = get_repository()
-    asset_row = repo.get_media_asset(req.asset_id)
+    asset_row = repo.get_rights_asset(req.asset_id)
     if asset_row is None:
         return {"error": "asset not found", "id": req.asset_id}
     asset = PermittedAsset(

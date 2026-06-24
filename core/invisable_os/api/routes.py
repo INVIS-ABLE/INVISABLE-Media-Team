@@ -27,7 +27,15 @@ from invisable_os.guardrails.policy import PRIME_DIRECTIVE
 from invisable_os.models.content import ContentCandidate, ContentFormat, Platform, QueueStatus
 from invisable_os.models.departments import Partner, TagNetworkMember
 from invisable_os.models.metrics import PerformanceSignal
-from invisable_os.services import publish_due, run_and_queue_daily
+from invisable_os.models.scheduling import Channel, ScheduleSlot
+from invisable_os.scheduling import default_week
+from invisable_os.services import (
+    calendar,
+    produce_media,
+    publish_due,
+    run_and_queue_daily,
+    schedule_next,
+)
 from invisable_os.store import get_repository
 
 router = APIRouter()
@@ -178,7 +186,13 @@ def get_queue_item(item_id: str) -> dict:
 
 @router.post("/v1/queue/{item_id}/{action}")
 def queue_action(item_id: str, action: str) -> dict:
-    """Move a queue item: approve | reject | schedule | publish."""
+    """Move a queue item: approve | reject | schedule | publish | schedule-next.
+
+    ``schedule-next`` assigns the next open posting slot for the item's channel; the
+    others are direct status transitions.
+    """
+    if action == "schedule-next":
+        return schedule_next(item_id)
     mapping = {
         "approve": QueueStatus.APPROVED,
         "reject": QueueStatus.REJECTED,
@@ -187,15 +201,69 @@ def queue_action(item_id: str, action: str) -> dict:
     }
     target = mapping.get(action)
     if target is None:
-        return {"error": f"unknown action '{action}'", "allowed": list(mapping)}
+        return {
+            "error": f"unknown action '{action}'",
+            "allowed": [*mapping, "schedule-next"],
+        }
     item = get_repository().transition(item_id, target)
     return item or {"error": "not found", "id": item_id}
 
 
 @router.post("/v1/publish/run")
 def publish_run() -> dict:
-    """Take approved/scheduled items live (dry-run unless Postiz is configured)."""
+    """Take due items live (approved now, or scheduled and time-arrived)."""
     return publish_due()
+
+
+# --- Scheduling: channels, slots, calendar ----------------------------------
+
+
+@router.get("/v1/channels")
+def list_channels() -> dict:
+    return {"channels": get_repository().list_channels()}
+
+
+@router.post("/v1/channels")
+def add_channel(channel: Channel, with_default_schedule: bool = True) -> dict:
+    repo = get_repository()
+    channel_id = repo.add_channel(channel)
+    slots = 0
+    if with_default_schedule:
+        for slot in default_week(channel_id):
+            repo.add_slot(slot)
+            slots += 1
+    return {"id": channel_id, "slots_created": slots}
+
+
+@router.post("/v1/channels/{channel_id}/slots")
+def add_slot(channel_id: str, slot: ScheduleSlot) -> dict:
+    slot.channel_id = channel_id
+    return {"id": get_repository().add_slot(slot)}
+
+
+@router.get("/v1/channels/{channel_id}/slots")
+def list_slots(channel_id: str) -> dict:
+    return {"slots": [s.model_dump() for s in get_repository().list_slots(channel_id)]}
+
+
+@router.get("/v1/calendar")
+def get_calendar() -> dict:
+    """Scheduled posts grouped by day, for a calendar view."""
+    return {"calendar": calendar()}
+
+
+# --- Media pipeline ---------------------------------------------------------
+
+
+@router.post("/v1/media/produce/{item_id}")
+def media_produce(item_id: str) -> dict:
+    """Render a queued item's flywheel assets into the media library."""
+    return produce_media(item_id)
+
+
+@router.get("/v1/media")
+def list_media(item_id: str | None = None) -> dict:
+    return {"assets": get_repository().list_media(item_id)}
 
 
 # --- Relationship: tag network & partners -----------------------------------

@@ -109,7 +109,7 @@ INVISABLE OS orchestrates a self-hostable, mostly open stack. See
 
 | Layer | Tooling |
 | ----- | ------- |
-| Reasoning / LLMs | [Claude](https://claude.ai), [Ollama](https://ollama.com) (Qwen, DeepSeek) |
+| Reasoning / LLMs | [Claude](https://claude.ai), [Ollama](https://ollama.com) (Qwen, DeepSeek) — structured JSON generation + an [LLM-judge](docs/GENERATION.md) on the deterministic floor |
 | Orchestration | [n8n](https://n8n.io), this `core` API |
 | Memory | [PostgreSQL](https://www.postgresql.org), [ChromaDB](https://www.trychroma.com) |
 | Chat UI | [Open WebUI](https://openwebui.com) |
@@ -139,7 +139,7 @@ invisable plan --persist    # run the day's 20 posts into the approval queue
 invisable queue             # review what's waiting
 invisable approve <id>      # approve an item
 invisable publish           # take it live (dry-run until Postiz is configured)
-invisable serve             # API at http://localhost:8080/docs
+invisable serve             # dashboard at http://localhost:8080/app · API docs at /docs
 
 # 3. Or bring up the whole stack (core self-migrates on boot)
 docker compose up -d core postgres chroma   # minimal
@@ -159,8 +159,19 @@ curl -s -X POST localhost:8080/v1/daily/plan \
   -H 'content-type: application/json' -d '{"persist": true}' | jq '.total, .total_assets'
 ```
 
-See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full runbook (lifecycle, CLI,
-API, scheduling, and going live with Postgres + Postiz).
+Schedule the approved queue into recurring posting slots and render media:
+
+```bash
+invisable seed-channels    # channels + a Mon–Fri × 3-slot weekly schedule
+invisable schedule         # fill the next open slots (timezone-aware)
+invisable calendar         # see the week laid out by day
+invisable produce <id>     # render a post's flywheel assets into the media library
+```
+
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full runbook,
+[`docs/SCHEDULING.md`](docs/SCHEDULING.md) for the posting-slot queue + media
+pipeline, and [`docs/REFERENCES.md`](docs/REFERENCES.md) for the open-source
+schedulers we studied (and their licences).
 
 ---
 

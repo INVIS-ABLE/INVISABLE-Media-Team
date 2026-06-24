@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
         version=__version__,
         description=(
             "The central operating system of the INVISABLE® movement. "
+            "Dashboard at /app · API docs at /docs. "
             "Prime Directive: " + PRIME_DIRECTIVE
         ),
     )
@@ -56,9 +57,20 @@ def create_app() -> FastAPI:
             "name": "INVISABLE® AI Media Agency OS",
             "prime_directive": PRIME_DIRECTIVE,
             "docs": "/docs",
+            "dashboard": "/app/",
         }
 
     app.include_router(router)
+
+    # Serve the installable PWA dashboard at /app (if bundled).
+    from pathlib import Path
+
+    from fastapi.staticfiles import StaticFiles
+
+    web_dir = Path(__file__).parent / "web"
+    if web_dir.is_dir():
+        app.mount("/app", StaticFiles(directory=str(web_dir), html=True), name="dashboard")
+
     return app
 
 

@@ -53,10 +53,10 @@ def test_remix_create_queues_a_job():
 
 def test_voiceover_blocked_over_reference_only_asset():
     owned = client.post(
-        "/v1/media/upload", json={"title": "van", "rights_status": "owned", "file_path": "/v.mp4"}
+        "/v1/rights-assets", json={"title": "van", "rights_status": "owned", "file_path": "/v.mp4"}
     ).json()["id"]
     ref = client.post(
-        "/v1/media/upload", json={"title": "ripped", "rights_status": "reference_only"}
+        "/v1/rights-assets", json={"title": "ripped", "rights_status": "reference_only"}
     ).json()["id"]
 
     ok = client.post(
@@ -72,10 +72,11 @@ def test_voiceover_blocked_over_reference_only_asset():
 
 def test_patch_media_rights():
     aid = client.post(
-        "/v1/media/upload", json={"title": "clip", "rights_status": "reference_only"}
+        "/v1/rights-assets", json={"title": "clip", "rights_status": "reference_only"}
     ).json()["id"]
     upd = client.patch(
-        f"/v1/media/{aid}/rights", json={"rights_status": "licensed", "licence_notes": "deal"}
+        f"/v1/rights-assets/{aid}/rights",
+        json={"rights_status": "licensed", "licence_notes": "deal"},
     ).json()
     assert upd["rights_status"] == "licensed"
 

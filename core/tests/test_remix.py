@@ -267,11 +267,11 @@ def test_repository_round_trips_remix_tables():
     items = repo.list_scanned_items()
     assert items and items[0]["rights_status"] == "reference_only"
 
-    aid = repo.add_media_asset({"title": "van clip", "rights_status": "owned"})
-    assert repo.get_media_asset(aid)["rights_status"] == "owned"
+    aid = repo.add_rights_asset({"title": "van clip", "rights_status": "owned"})
+    assert repo.get_rights_asset(aid)["rights_status"] == "owned"
     updated = repo.set_asset_rights(aid, "licensed", licence_notes="MSA #12")
     assert updated["rights_status"] == "licensed"
-    assert repo.list_media_assets(rights_status="licensed")
+    assert repo.list_rights_assets(rights_status="licensed")
 
     repo.add_pop_culture({"title": "Heist tension", "paraphrase_safe": "guarding a drill"})
     repo.add_meme_format({"format_name": "POV", "structure": "POV: ..."})

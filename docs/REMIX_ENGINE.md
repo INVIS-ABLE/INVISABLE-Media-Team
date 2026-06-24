@@ -170,7 +170,7 @@ POST  /remix/reference-to-parody   # Workflow 2
 POST  /remix/construction-news     # Workflow 5
 POST  /remix/pop-culture           # Workflow 4
 GET   /remix/jobs   ·  POST /remix/jobs/{id}/{action}
-POST  /media/upload  ·  GET /media  ·  PATCH /media/{id}/rights
+POST  /rights-assets  ·  GET /rights-assets  ·  PATCH /rights-assets/{id}/rights
 POST  /voiceover/create            # voiceover over an APPROVED asset (gated)
 POST  /export/video-plan           # rights-safe FFmpeg assembly plan
 GET   /popculture   ·  POST /popculture

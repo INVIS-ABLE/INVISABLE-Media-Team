@@ -13,8 +13,10 @@ from sqlalchemy import select
 
 from invisable_os.models.content import QueueStatus
 from invisable_os.models.departments import Opportunity, Partner, TagNetworkMember
+from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.store.db import session_scope
 from invisable_os.store.models import (
+    ChannelRow,
     ExtractedHookRow,
     MediaAssetRow,
     MemeFormatRow,
@@ -24,8 +26,10 @@ from invisable_os.store.models import (
     PopCultureRow,
     QueueItemRow,
     RemixJobRow,
+    RightsAssetRow,
     ScannedItemRow,
     ScannerSourceRow,
+    ScheduleSlotRow,
     SubtitleRow,
     TagMemberRow,
 )
@@ -266,11 +270,11 @@ class Repository:
 
     # --- Media assets (rights manager) -------------------------------------
 
-    def add_media_asset(self, asset: dict) -> str:
+    def add_rights_asset(self, asset: dict) -> str:
         row_id = asset.get("id") or uuid.uuid4().hex
         with session_scope() as s:
             s.add(
-                MediaAssetRow(
+                RightsAssetRow(
                     id=row_id,
                     file_path=asset.get("file_path", ""),
                     source_url=asset.get("source_url", asset.get("uri", "")),
@@ -288,22 +292,22 @@ class Repository:
             )
         return row_id
 
-    def list_media_assets(self, rights_status: str | None = None) -> list[dict]:
+    def list_rights_assets(self, rights_status: str | None = None) -> list[dict]:
         with session_scope() as s:
-            stmt = select(MediaAssetRow)
+            stmt = select(RightsAssetRow)
             if rights_status:
-                stmt = stmt.where(MediaAssetRow.rights_status == rights_status)
+                stmt = stmt.where(RightsAssetRow.rights_status == rights_status)
             return [r.as_dict() for r in s.scalars(stmt)]
 
-    def get_media_asset(self, asset_id: str) -> dict | None:
+    def get_rights_asset(self, asset_id: str) -> dict | None:
         with session_scope() as s:
-            row = s.get(MediaAssetRow, asset_id)
+            row = s.get(RightsAssetRow, asset_id)
             return row.as_dict() if row else None
 
     def set_asset_rights(self, asset_id: str, rights_status: str,
                          licence_notes: str | None = None) -> dict | None:
         with session_scope() as s:
-            row = s.get(MediaAssetRow, asset_id)
+            row = s.get(RightsAssetRow, asset_id)
             if row is None:
                 return None
             row.rights_status = rights_status
@@ -454,6 +458,130 @@ class Repository:
             if asset_id:
                 stmt = stmt.where(SubtitleRow.asset_id == asset_id)
             return [r.as_dict() for r in s.scalars(stmt.limit(limit))]
+
+    # --- Channels & posting schedule ---------------------------------------
+
+    def add_channel(self, channel: Channel) -> str:
+        with session_scope() as s:
+            s.add(
+                ChannelRow(
+                    id=channel.id,
+                    name=channel.name,
+                    platform=channel.platform.value,
+                    handle=channel.handle,
+                    timezone=channel.timezone,
+                    active=channel.active,
+                )
+            )
+        return channel.id
+
+    def list_channels(self) -> list[dict]:
+        with session_scope() as s:
+            return [r.as_dict() for r in s.scalars(select(ChannelRow))]
+
+    def get_channel(self, channel_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(ChannelRow, channel_id)
+            return row.as_dict() if row else None
+
+    def add_slot(self, slot: ScheduleSlot) -> str:
+        with session_scope() as s:
+            s.add(
+                ScheduleSlotRow(
+                    id=slot.id,
+                    channel_id=slot.channel_id,
+                    weekday=slot.weekday,
+                    hour=slot.hour,
+                    minute=slot.minute,
+                    active=slot.active,
+                )
+            )
+        return slot.id
+
+    def list_slots(self, channel_id: str | None = None) -> list[ScheduleSlot]:
+        with session_scope() as s:
+            stmt = select(ScheduleSlotRow)
+            if channel_id:
+                stmt = stmt.where(ScheduleSlotRow.channel_id == channel_id)
+            return [
+                ScheduleSlot(
+                    id=r.id,
+                    channel_id=r.channel_id,
+                    weekday=r.weekday,
+                    hour=r.hour,
+                    minute=r.minute,
+                    active=r.active,
+                )
+                for r in s.scalars(stmt)
+            ]
+
+    def taken_slots(self) -> set[datetime]:
+        """The scheduled_at times already assigned (so we never double-book a slot)."""
+        with session_scope() as s:
+            rows = s.scalars(
+                select(QueueItemRow).where(QueueItemRow.scheduled_at.is_not(None))
+            )
+            return {r.scheduled_at for r in rows if r.scheduled_at}
+
+    def assign_schedule(self, item_id: str, when: datetime) -> dict | None:
+        """Pin an item to a specific posting time and mark it scheduled."""
+        with session_scope() as s:
+            row = s.get(QueueItemRow, item_id)
+            if row is None:
+                return None
+            row.scheduled_at = when
+            row.status = QueueStatus.SCHEDULED.value
+            return row.as_dict()
+
+    def due_for_publish(self, now: datetime, limit: int = 50) -> list[dict]:
+        """Approved items (immediate) + scheduled items whose time has arrived."""
+        with session_scope() as s:
+            approved = list(
+                s.scalars(
+                    select(QueueItemRow)
+                    .where(QueueItemRow.status == QueueStatus.APPROVED.value)
+                    .limit(limit)
+                )
+            )
+            scheduled = [
+                r
+                for r in s.scalars(
+                    select(QueueItemRow).where(QueueItemRow.status == QueueStatus.SCHEDULED.value)
+                )
+                if r.scheduled_at is not None and _as_utc(r.scheduled_at) <= _as_utc(now)
+            ]
+            return [r.as_dict() for r in (approved + scheduled)][:limit]
+
+    # --- Media library ------------------------------------------------------
+
+    def add_media_asset(self, queue_item_id: str, kind: str, spec: str, path: str,
+                        backend: str, status: str = "rendered") -> str:
+        asset_id = uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                MediaAssetRow(
+                    id=asset_id,
+                    queue_item_id=queue_item_id,
+                    kind=kind,
+                    spec=spec,
+                    path=path,
+                    backend=backend,
+                    status=status,
+                )
+            )
+        return asset_id
+
+    def list_media(self, queue_item_id: str | None = None) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(MediaAssetRow)
+            if queue_item_id:
+                stmt = stmt.where(MediaAssetRow.queue_item_id == queue_item_id)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+
+def _as_utc(dt: datetime) -> datetime:
+
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
 _singleton: Repository | None = None
