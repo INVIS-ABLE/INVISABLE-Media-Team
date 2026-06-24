@@ -7,6 +7,8 @@ metrics arrive.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from invisable_os.models.content import QueueStatus
 from invisable_os.publish import Publisher, get_publisher
 from invisable_os.store import Repository, get_repository
@@ -15,15 +17,15 @@ from invisable_os.store import Repository, get_repository
 def publish_due(
     *,
     limit: int = 20,
+    now: datetime | None = None,
     repository: Repository | None = None,
     publisher: Publisher | None = None,
 ) -> dict:
-    """Publish approved (and already-scheduled) items. Returns a small report."""
+    """Publish due items: approved (immediate) + scheduled items whose time has come."""
     repo = repository or get_repository()
     pub = publisher or get_publisher()
 
-    due = repo.list_queue(QueueStatus.APPROVED.value, limit=limit)
-    due += repo.list_queue(QueueStatus.SCHEDULED.value, limit=limit)
+    due = repo.due_for_publish(now or datetime.now(UTC), limit=limit)
 
     published, failed = [], []
     for item in due:

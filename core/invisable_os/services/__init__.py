@@ -4,7 +4,16 @@ These are the operational seams: turning a day's plan into a persisted approval
 queue, and driving approved items out to the publisher.
 """
 
+from invisable_os.services.media import produce_media
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due
+from invisable_os.services.scheduling import calendar, schedule_next
 
-__all__ = ["persist_plan", "run_and_queue_daily", "publish_due"]
+__all__ = [
+    "persist_plan",
+    "run_and_queue_daily",
+    "publish_due",
+    "schedule_next",
+    "calendar",
+    "produce_media",
+]

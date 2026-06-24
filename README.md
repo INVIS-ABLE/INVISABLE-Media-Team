@@ -157,8 +157,19 @@ curl -s -X POST localhost:8080/v1/daily/plan \
   -H 'content-type: application/json' -d '{"persist": true}' | jq '.total, .total_assets'
 ```
 
-See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full runbook (lifecycle, CLI,
-API, scheduling, and going live with Postgres + Postiz).
+Schedule the approved queue into recurring posting slots and render media:
+
+```bash
+invisable seed-channels    # channels + a Mon–Fri × 3-slot weekly schedule
+invisable schedule         # fill the next open slots (timezone-aware)
+invisable calendar         # see the week laid out by day
+invisable produce <id>     # render a post's flywheel assets into the media library
+```
+
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full runbook,
+[`docs/SCHEDULING.md`](docs/SCHEDULING.md) for the posting-slot queue + media
+pipeline, and [`docs/REFERENCES.md`](docs/REFERENCES.md) for the open-source
+schedulers we studied (and their licences).
 
 ---
 

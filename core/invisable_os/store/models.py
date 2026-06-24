@@ -147,3 +147,83 @@ class PerfSignalRow(Base):
     value = Column(Float, default=0.0)
     themes = Column(JSON, default=list)
     observed_at = Column(DateTime(timezone=True), default=_now)
+
+
+# ============================================================================
+# Scheduling — connected channels + a weekly posting-slot schedule (the
+# Buffer/Postiz/Mixpost "queue" pattern: define slots once, fill the next free
+# one automatically). Architecture borrowed from those tools; code is original.
+# ============================================================================
+
+
+class ChannelRow(Base):
+    """A connected social account a post can target."""
+
+    __tablename__ = "channel"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    platform = Column(String, nullable=False)
+    handle = Column(String, default="")
+    timezone = Column(String, default="Europe/London")
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "platform": self.platform,
+            "handle": self.handle,
+            "timezone": self.timezone,
+            "active": self.active,
+        }
+
+
+class ScheduleSlotRow(Base):
+    """A recurring weekly posting slot for a channel (weekday + time-of-day)."""
+
+    __tablename__ = "schedule_slot"
+
+    id = Column(String, primary_key=True)
+    channel_id = Column(String, index=True)
+    weekday = Column(Integer, nullable=False)  # 0=Monday … 6=Sunday
+    hour = Column(Integer, nullable=False)
+    minute = Column(Integer, default=0)
+    active = Column(Boolean, default=True)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "channel_id": self.channel_id,
+            "weekday": self.weekday,
+            "hour": self.hour,
+            "minute": self.minute,
+            "active": self.active,
+        }
+
+
+class MediaAssetRow(Base):
+    """A produced media asset in the library, linked to a queue item."""
+
+    __tablename__ = "media_asset"
+
+    id = Column(String, primary_key=True)
+    queue_item_id = Column(String, index=True)
+    kind = Column(String, nullable=False)  # tiktok | reel | quote_graphic | voiceover | …
+    spec = Column(String, default="")
+    path = Column(String, default="")
+    backend = Column(String, default="dry-run")
+    status = Column(String, default="rendered")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "queue_item_id": self.queue_item_id,
+            "kind": self.kind,
+            "spec": self.spec,
+            "path": self.path,
+            "backend": self.backend,
+            "status": self.status,
+        }

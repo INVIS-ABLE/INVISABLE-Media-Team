@@ -83,11 +83,18 @@ class ContentTournamentEngine:
         content_format: ContentFormat = ContentFormat.SHORT_VIDEO,
         improve_top: int = 6,
         published: list[ContentCandidate] | None = None,
+        rebalance_founder: bool = True,
+        angle: str | None = None,
     ) -> TournamentResult:
-        """Execute one tournament and return the winners."""
+        """Execute one tournament and return the winners.
+
+        ``rebalance_founder`` lets callers (e.g. the Daily Director, whose editorial
+        brief already controls the founder/pillar mix per slot) select purely on the
+        values score without the Founder Engine promoting founder content.
+        """
         # 1. Generate the field.
         field_ = self.generator.generate(
-            brief, platform, count=count, content_format=content_format
+            brief, platform, count=count, content_format=content_format, angle=angle
         )
 
         # 2. Hard gate + initial score. A blocked candidate is still recorded (as a
@@ -122,13 +129,14 @@ class ContentTournamentEngine:
         )
         ranked = self._dedupe(ranked_all)
 
-        # 5. Select, then let the Founder Engine rebalance toward the target mix.
+        # 5. Select, then (optionally) let the Founder Engine rebalance toward the mix.
         chosen = ranked[: max(select, 0)]
-        rebalanced_candidates = self.founder.rebalance(
-            [s.candidate for s in chosen], published=published
-        )
-        order = {c.id: i for i, c in enumerate(rebalanced_candidates)}
-        chosen.sort(key=lambda s: order.get(s.candidate.id, 999))
+        if rebalance_founder:
+            rebalanced_candidates = self.founder.rebalance(
+                [s.candidate for s in chosen], published=published
+            )
+            order = {c.id: i for i, c in enumerate(rebalanced_candidates)}
+            chosen.sort(key=lambda s: order.get(s.candidate.id, 999))
 
         # 6. Remember the winners so the platform compounds what works.
         for w in chosen:

@@ -100,6 +100,77 @@ def _publish(_args) -> int:
     return 0
 
 
+def _seed_channels(_args) -> int:
+    from invisable_os.models.content import Platform
+    from invisable_os.models.scheduling import Channel
+    from invisable_os.scheduling import default_week
+    from invisable_os.store import get_repository, init_db
+
+    init_db()
+    repo = get_repository()
+    for name, platform, handle in (
+        ("INVISABLE Instagram", Platform.INSTAGRAM, "@invisable"),
+        ("INVISABLE TikTok", Platform.TIKTOK, "@invisable"),
+    ):
+        ch = Channel(name=name, platform=platform, handle=handle)
+        repo.add_channel(ch)
+        for slot in default_week(ch.id):
+            repo.add_slot(slot)
+    print("✓ seeded 2 channels with a Mon–Fri × 3-slot posting schedule")
+    return 0
+
+
+def _calendar(_args) -> int:
+    from invisable_os.services import calendar
+    from invisable_os.store import init_db
+
+    init_db()
+    cal = calendar()
+    if not cal:
+        print("(no scheduled posts — approve items then `invisable schedule`)")
+    for day, items in cal.items():
+        print(f"{day}: {len(items)} post(s)")
+        for it in items:
+            print(f"    {it['scheduled_at'][11:16]}  {it['pillar']:10} "
+                  f"{it['candidate'].get('hook', '')[:42]}")
+    return 0
+
+
+def _schedule(_args) -> int:
+    from invisable_os.models.content import QueueStatus
+    from invisable_os.services import schedule_next
+    from invisable_os.store import get_repository, init_db
+
+    init_db()
+    repo = get_repository()
+    approved = repo.list_queue(QueueStatus.APPROVED.value)
+    if not approved:
+        print("(no approved items to schedule)")
+        return 0
+    for item in approved:
+        res = schedule_next(item["id"])
+        if "error" in res:
+            print(f"  skip {item['id'][:8]}: {res['error']}")
+        else:
+            print(f"  ✓ {item['id'][:8]} → {res['scheduled_at']} on {res['channel']}")
+    return 0
+
+
+def _produce(args) -> int:
+    from invisable_os.services import produce_media
+    from invisable_os.store import init_db
+
+    init_db()
+    res = produce_media(args.id)
+    if "error" in res:
+        print(res["error"], args.id)
+        return 1
+    print(f"✓ produced {res['produced']} assets for {args.id[:8]}")
+    for a in res["assets"]:
+        print(f"    [{a['backend']:10}] {a['kind']:14} {a['path']}")
+    return 0
+
+
 def _seed_tags(_args) -> int:
     from invisable_os.models.departments import TagNetworkMember
     from invisable_os.store import get_repository, init_db
@@ -143,9 +214,20 @@ def main(argv: list[str] | None = None) -> int:
     p_approve.add_argument("id")
     p_approve.set_defaults(func=_approve)
 
-    sub.add_parser("publish", help="take approved items live").set_defaults(func=_publish)
+    sub.add_parser("publish", help="take due items live").set_defaults(func=_publish)
     p_seed = sub.add_parser("seed-tags", help="add example tag-network members")
     p_seed.set_defaults(func=_seed_tags)
+
+    p_seedc = sub.add_parser("seed-channels", help="add channels + a default posting schedule")
+    p_seedc.set_defaults(func=_seed_channels)
+    sub.add_parser("schedule", help="assign approved items to the next open slots").set_defaults(
+        func=_schedule
+    )
+    sub.add_parser("calendar", help="show scheduled posts by day").set_defaults(func=_calendar)
+
+    p_produce = sub.add_parser("produce", help="render a queued item's media assets")
+    p_produce.add_argument("id")
+    p_produce.set_defaults(func=_produce)
 
     args = parser.parse_args(argv)
     return args.func(args)

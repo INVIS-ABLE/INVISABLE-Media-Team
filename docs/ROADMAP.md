@@ -68,15 +68,30 @@ honest state of each piece:
 - ✅ **Docker** — core self-bootstraps the DB and serves via the CLI; Postgres driver
   included. Runbook in [`OPERATIONS.md`](OPERATIONS.md).
 
+### Scheduling & media build (added)
+
+- ✅ **Posting-slot queue** (`scheduling/`) — weekly slots per channel, "fill the
+  next free slot" with timezone-aware slot computation and no double-booking. Tested.
+- ✅ **Channels & default schedule** — connected accounts + Mon–Fri × 3-slot default
+  at off-the-hour times. CLI `seed-channels` / `schedule`. Tested.
+- ✅ **Calendar** — scheduled posts grouped by day (`GET /v1/calendar`, CLI). Tested.
+- ✅ **Media pipeline** (`media/`) — ComfyUI/Flux, ElevenLabs, Whisper, passthrough
+  renderers with dry-run fallback; `MediaProducer` renders the flywheel into the
+  media library. Tested.
+- ✅ **Per-slot angle generation** — each daily slot generates in its editorial
+  angle, so the day spans distinct content (not 20 clones).
+- ✅ **Reference audit** — licences verified; patterns borrowed clean-room. See
+  [`REFERENCES.md`](REFERENCES.md), [`SCHEDULING.md`](SCHEDULING.md).
+
 ## Next (clearly scoped extensions)
 
 - ⏳ **Live generation at volume** — richer Claude/Ollama prompts + structured JSON
   output parsing + an LLM-judge scoring pass on top of the deterministic floor.
-- ⏳ **Media pipeline** — ComfyUI/Flux image gen, ElevenLabs voice, Whisper
-  captions, OpenCut assembly, ResourceSpace asset library, wired to the flywheel.
+- ⏳ **Real media rendering** — wire the ComfyUI graph submissions + ElevenLabs/
+  Whisper calls behind the now-stubbed renderers; OpenCut assembly; ResourceSpace library.
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
 - ⏳ **PWA front-end** — build the dashboard in [`PWA_DASHBOARD.md`](PWA_DASHBOARD.md)
-  against the now-operational API.
+  against the now-operational API (queue, calendar, media library all exist).
 - ⏳ **Founder Recognition dashboard** — surface the index and presence view over time.
 
 ## Guiding principle for every extension
