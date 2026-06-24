@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from invisable_os.agents import AGENT_REGISTRY, route
+from invisable_os.agents import AGENT_REGISTRY, TEAM_ORDER, by_team, route
 from invisable_os.brain import get_brain
 from invisable_os.engines import (
     AlgorithmWatchtower,
@@ -24,6 +24,8 @@ from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
+from invisable_os.media.safe_area import Surface, VisualLayoutAgent, get_template
+from invisable_os.media.video_qc import RegionModel, VideoQualityGate, VideoSpec
 from invisable_os.models.content import ContentCandidate, ContentFormat, Platform, QueueStatus
 from invisable_os.models.departments import Partner, TagNetworkMember
 from invisable_os.models.metrics import PerformanceSignal
@@ -354,6 +356,68 @@ def list_agents() -> dict:
 def route_agents(task: str) -> dict:
     """Route a free-text task to the best-matched specialist agents."""
     return {"task": task, "agents": [a.name for a in route(task)]}
+
+
+@router.get("/v1/agents/teams")
+def agents_by_team() -> dict:
+    """The studio grouped into its seven production-pipeline teams, in order."""
+    return {
+        "pipeline": [t.value for t in TEAM_ORDER],
+        "teams": {
+            team.value: [
+                {"name": a.name, "department": a.department.value, "role": a.role}
+                for a in by_team(team)
+            ]
+            for team in TEAM_ORDER
+        },
+    }
+
+
+# --- Visual layout & video quality gate -------------------------------------
+
+
+class PlaceCaptionRequest(BaseModel):
+    platform: Platform = Platform.TIKTOK
+    surface: Surface = Surface.REEL
+    height: float = Field(default=0.12, gt=0.0, lt=1.0)
+    regions: list[RegionModel] = Field(default_factory=list)
+
+
+@router.get("/v1/safe-area")
+def safe_area(platform: Platform = Platform.TIKTOK, surface: Surface = Surface.REEL) -> dict:
+    """The platform/surface safe-area template: UI exclusion zones + title-safe box."""
+    template = get_template(platform, surface)
+    if template is None:
+        return {"error": "no template", "platform": platform.value, "surface": surface.value}
+    return {
+        "platform": template.platform.value,
+        "surface": template.surface.value,
+        "aspect": template.aspect.value,
+        "title_safe": template.title_safe.as_dict(),
+        "exclusions": [
+            {"name": z.name, "reason": z.reason, "box": z.box.as_dict()}
+            for z in template.exclusions
+        ],
+    }
+
+
+@router.post("/v1/layout/place-caption")
+def place_caption(req: PlaceCaptionRequest) -> dict:
+    """Ask the Visual Layout Agent where a caption can go without blocking anything."""
+    template = get_template(req.platform, req.surface)
+    if template is None:
+        return {"error": "no template", "platform": req.platform.value,
+                "surface": req.surface.value}
+    placement = VisualLayoutAgent().place_caption(
+        template, height=req.height, regions=[r.to_region() for r in req.regions]
+    )
+    return placement.as_dict()
+
+
+@router.post("/v1/video/qc")
+def video_qc(spec: VideoSpec) -> dict:
+    """Run the full pre-approval video quality gate over a structured clip spec."""
+    return VideoQualityGate().check(spec).summary()
 
 
 def _candidate_from(req: IdeaRequest) -> ContentCandidate:

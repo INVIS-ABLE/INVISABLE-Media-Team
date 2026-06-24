@@ -40,8 +40,11 @@ honest state of each piece:
   per-platform, max-tags. Tested.
 - ✅ **Risk Scanner** — advisory flags (medical/legal/benefits/sponsor/copyright)
   for human review. Tested.
-- ✅ **Agent Library** (`agents/`) — 38 specialist agents + router; guardrails
-  baked into every prompt. Tested.
+- ✅ **Agent Library** (`agents/`) — 77 specialist agents across seven
+  production-pipeline teams + router; guardrails baked into every prompt. Tested.
+- ✅ **Visual Layout Agent + Video Quality Gate** (`media/safe_area.py`,
+  `media/video_qc.py`) — deterministic safe-area geometry (captions off faces/UI) and
+  the full pre-approval video checklist. Tested. See `docs/PRODUCTION_STUDIO.md`.
 - ✅ Department **DB schema** (tag network, people/consent, partners, CRM,
   competitors, opportunities, media contacts, community stories, knowledge, hooks,
   mission/risk).

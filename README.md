@@ -77,8 +77,15 @@ engines above sit:
 | 🎭 **Remix, Parody & Trend Intelligence** | Scanner + remix brain + rights database + parody engine. Analyses/parodies/transforms trends into original content; a rights filter (8 statuses) blocks reuploading others' videos as-is. See [`docs/REMIX_ENGINE.md`](docs/REMIX_ENGINE.md). |
 | 🕵️ **Intelligence / 📚 Knowledge / 🎤 PR** | Competitor & opportunity scanning, NHS/benefits & construction knowledge, journalist/press tooling. |
 
-45 specialist **agents** ([`docs/AGENT_LIBRARY.md`](docs/AGENT_LIBRARY.md)) carry the
-guardrails into every call. See [`docs/DEPARTMENTS.md`](docs/DEPARTMENTS.md),
+84 specialist **agents** ([`docs/AGENT_LIBRARY.md`](docs/AGENT_LIBRARY.md)) carry the
+guardrails into every call, organised as a **multi-agent production studio** of seven
+pipeline teams — research → strategy → writing → production → quality → publishing →
+learning ([`docs/PRODUCTION_STUDIO.md`](docs/PRODUCTION_STUDIO.md)). The headline of
+that studio is the **Visual Layout Agent** and the **Video Quality Gate**: deterministic
+safe-area geometry that keeps captions off faces and platform UI, plus a full
+pre-approval video checklist. See also [`docs/DEPARTMENTS.md`](docs/DEPARTMENTS.md),
+[`docs/TOOL_INTEGRATION_REVIEW.md`](docs/TOOL_INTEGRATION_REVIEW.md),
+[`docs/REMIX_ENGINE.md`](docs/REMIX_ENGINE.md),
 [`docs/GODTIER_ARCHITECTURE.md`](docs/GODTIER_ARCHITECTURE.md),
 [`docs/DAILY_PIPELINE.md`](docs/DAILY_PIPELINE.md),
 [`docs/N8N_WORKFLOW_MAP.md`](docs/N8N_WORKFLOW_MAP.md),
