@@ -155,12 +155,34 @@ report.summary()       # {"passed": ..., "failures": [...], "warnings": [...], "
 
 ### Where the real probes plug in
 
-The gate is pure logic; the detectors are the integration seam:
+The gate is pure logic; the detectors are the integration seam
+([`media/probes.py`](../core/invisable_os/media/probes.py)). Each follows the renderer
+idiom — **use the real tool when it's installed, else pass the spec through as a
+dry-run** — so the pipeline runs anywhere and only measures for real on the GPU box:
 
-- **FFmpeg** → container (w/h/fps/duration), `loudnorm`/`ebur128` (LUFS, true peak).
+- **FFmpeg** → container (w/h/fps/duration) via `ffprobe`, loudness + true peak via
+  `ebur128`. ✅ wired (`FFmpegProbe`, [`media/probes.py`](../core/invisable_os/media/probes.py)).
 - **Whisper / faster-whisper** → transcript + caption cues for accuracy & timing.
-- **OpenCV / YOLO (Ultralytics)** → faces, hands/tools/products, logos → `Region`s.
-- **OCR (PaddleOCR / Tesseract)** → on-screen text regions → `Region`s.
+  ✅ wired (`WhisperProbe`).
+- **OpenCV faces** → `RegionKind.FACE` regions for the obstruction check.
+  ✅ wired (`OpenCVFaceProbe`, [`media/region_probe.py`](../core/invisable_os/media/region_probe.py)).
+  Uses OpenCV's **BSD-licensed Haar cascade — not Ultralytics YOLO** (AGPL, blocked by
+  the model-licence gate).
+- **OCR (Tesseract)** → `RegionKind.ON_SCREEN_TEXT` regions. ✅ wired (`OCRTextProbe`).
+- Hands/tools/products and logos → `Region`s remain a seam for an AGPL-safe object detector.
+
+```python
+from invisable_os.media.probes import probe_video       # FFmpeg + Whisper + OpenCV + OCR
+from invisable_os.media.video_qc import VideoQualityGate
+
+spec = probe_video("render.mp4")          # fills in w/h/fps/loudness/captions + face & text regions
+report = VideoQualityGate().check(spec)    # …then the gate runs on the measured spec
+```
+
+`POST /v1/video/probe` exposes the same `probe → gate` flow over HTTP for a
+server-local path. All the geometry/parsing (`parse_ffprobe`, `parse_ebur128`,
+`pixels_to_box`, `merge_regions`) is pure and unit-tested against captured tool
+output, so it's verified even without the binaries installed.
 
 See [TOOL_INTEGRATION_REVIEW.md](./TOOL_INTEGRATION_REVIEW.md) for the licence,
 security, maintenance and Docker assessment of each, and whether to integrate it

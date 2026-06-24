@@ -195,9 +195,20 @@ class DailyContentDirector:
         self.quality = quality or QualityEngine()
         self.flywheel = flywheel or ContentFlywheel()
 
-    def plan_day(self, *, candidates_per_slot: int = 16) -> DailyPlan:
+    def plan_day(
+        self,
+        *,
+        candidates_per_slot: int = 16,
+        prior_published: list[ContentCandidate] | None = None,
+    ) -> DailyPlan:
+        """Plan the day's 20 posts.
+
+        ``prior_published`` seeds the Founder Engine with content already published
+        or queued (e.g. from earlier runs) so founder presence tracks the ~80%
+        target across days, not just within a single run.
+        """
         plan = DailyPlan()
-        published: list[ContentCandidate] = []
+        published: list[ContentCandidate] = list(prior_published or [])
         for slot in DAILY_BRIEF:
             result = self.tournament.run(
                 slot.brief,

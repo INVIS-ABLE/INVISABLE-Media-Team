@@ -18,6 +18,7 @@ from invisable_os.store.db import session_scope
 from invisable_os.store.models import (
     ChannelRow,
     ExtractedHookRow,
+    FounderRecognitionRow,
     MediaAssetRow,
     MemeFormatRow,
     OpportunityRow,
@@ -31,6 +32,8 @@ from invisable_os.store.models import (
     ScannedItemRow,
     ScannerSourceRow,
     ScheduleSlotRow,
+    SourceClaimRow,
+    SourceRow,
     SubtitleRow,
     SystemFlagRow,
     TagMemberRow,
@@ -203,6 +206,43 @@ class Repository:
                     themes=themes or [],
                 )
             )
+
+    # --- Founder Recognition Index ledger ----------------------------------
+
+    def record_founder_recognition(self, index_value: float, breakdown: dict) -> str:
+        """Append a Founder Recognition Index reading. Returns the row id."""
+        row_id = uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                FounderRecognitionRow(
+                    id=row_id, index_value=index_value, breakdown=dict(breakdown or {})
+                )
+            )
+        return row_id
+
+    def list_founder_recognition(self, limit: int = 30) -> list[dict]:
+        """Recognition history, oldest → newest (so a chart reads left to right)."""
+        with session_scope() as s:
+            rows = list(s.scalars(select(FounderRecognitionRow)))
+            rows.sort(key=lambda r: r.created_at or _now())
+            return [r.as_dict() for r in rows[-limit:]]
+
+    # --- Cross-run history (for founder presence balancing) ----------------
+
+    def recent_candidates(self, limit: int = 60) -> list[dict]:
+        """Recent queued candidates (any non-rejected status), newest first.
+
+        Used to seed the Founder Engine so founder presence tracks the ~80% target
+        across days, not just within a single run. Returns the stored candidate
+        dumps; callers read ``founder_centred`` / ``platform``.
+        """
+        with session_scope() as s:
+            rows = [
+                r for r in s.scalars(select(QueueItemRow))
+                if r.status != QueueStatus.REJECTED.value
+            ]
+            rows.sort(key=lambda r: r.created_at or _now(), reverse=True)
+            return [r.candidate for r in rows[:limit] if r.candidate]
 
     # ======================================================================
     # Remix, Parody & Trend Intelligence department
@@ -580,6 +620,93 @@ class Repository:
             if queue_item_id:
                 stmt = stmt.where(MediaAssetRow.queue_item_id == queue_item_id)
             return [r.as_dict() for r in s.scalars(stmt)]
+
+    # --- Credible sources & claims -----------------------------------------
+
+    def add_source(self, source: dict) -> str:
+        source_id = source.get("id") or uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                SourceRow(
+                    id=source_id,
+                    name=source.get("name", "Untitled source"),
+                    url=source.get("url", ""),
+                    source_type=source.get("source_type", "news"),
+                    credibility_level=source.get("credibility_level", 3),
+                    country=source.get("country", "UK"),
+                    topic_area=source.get("topic_area", ""),
+                    rss_url=source.get("rss_url", ""),
+                    enabled=source.get("enabled", True),
+                    notes=source.get("notes", ""),
+                )
+            )
+        return source_id
+
+    def list_sources(self, enabled: bool | None = None) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(SourceRow)
+            if enabled is not None:
+                stmt = stmt.where(SourceRow.enabled == enabled)
+            stmt = stmt.order_by(SourceRow.credibility_level.asc())
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def get_source(self, source_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceRow, source_id)
+            return row.as_dict() if row else None
+
+    def set_source_enabled(self, source_id: str, enabled: bool) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceRow, source_id)
+            if row is None:
+                return None
+            row.enabled = enabled
+            return row.as_dict()
+
+    def add_source_claim(self, claim: dict) -> str:
+        claim_id = claim.get("id") or uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                SourceClaimRow(
+                    id=claim_id,
+                    source_id=claim.get("source_id", ""),
+                    title=claim.get("title", ""),
+                    claim_text=claim.get("claim_text", ""),
+                    quoted_text=claim.get("quoted_text", ""),
+                    paraphrase=claim.get("paraphrase", ""),
+                    url=claim.get("url", ""),
+                    publication_date=claim.get("publication_date"),
+                    confidence_score=claim.get("confidence_score", 0.5),
+                    primary_or_secondary=claim.get("primary_or_secondary", "secondary"),
+                    fact_checked_status=claim.get("fact_checked_status", "unverified"),
+                )
+            )
+        return claim_id
+
+    def list_source_claims(self, source_id: str | None = None,
+                           fact_checked_status: str | None = None,
+                           limit: int = 200) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(SourceClaimRow)
+            if source_id:
+                stmt = stmt.where(SourceClaimRow.source_id == source_id)
+            if fact_checked_status:
+                stmt = stmt.where(SourceClaimRow.fact_checked_status == fact_checked_status)
+            stmt = stmt.order_by(SourceClaimRow.created_at.desc()).limit(limit)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def get_source_claim(self, claim_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceClaimRow, claim_id)
+            return row.as_dict() if row else None
+
+    def set_claim_fact_checked(self, claim_id: str, status: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceClaimRow, claim_id)
+            if row is None:
+                return None
+            row.fact_checked_status = status
+            return row.as_dict()
 
     # --- Content War Chest --------------------------------------------------
 

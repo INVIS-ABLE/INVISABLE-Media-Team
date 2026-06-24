@@ -9,8 +9,19 @@ from __future__ import annotations
 
 from invisable_os.engines.daily import DailyContentDirector, PlannedPost
 from invisable_os.engines.tagging import TagNetwork
-from invisable_os.models.content import QueueStatus
+from invisable_os.models.content import ContentCandidate, QueueStatus
 from invisable_os.store import Repository, get_repository
+
+
+def _prior_published(repo: Repository) -> list[ContentCandidate]:
+    """Reconstruct recent queued candidates to seed founder-presence balancing."""
+    out: list[ContentCandidate] = []
+    for dump in repo.recent_candidates():
+        try:
+            out.append(ContentCandidate.model_validate(dump))
+        except Exception:  # noqa: BLE001 — a stale/partial dump must never block a run
+            continue
+    return out
 
 
 def _queue_item_from(post: PlannedPost, tags: list[str]) -> dict:
@@ -69,8 +80,12 @@ def run_and_queue_daily(
 ) -> dict:
     """Run the full day and persist it. Returns the plan summary + queue ids."""
     director = director or DailyContentDirector()
-    plan = director.plan_day(candidates_per_slot=candidates_per_slot)
-    ids = persist_plan(plan.posts, repository=repository)
+    repo = repository or get_repository()
+    plan = director.plan_day(
+        candidates_per_slot=candidates_per_slot,
+        prior_published=_prior_published(repo),
+    )
+    ids = persist_plan(plan.posts, repository=repo)
     summary = plan.summary()
     summary["queued_ids"] = ids
     return summary
