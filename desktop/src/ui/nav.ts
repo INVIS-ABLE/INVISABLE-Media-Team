@@ -24,6 +24,7 @@ const ITEMS: NavItem[] = [
   { id: "reels-queue", label: "Reels Queue", icon: "▶" },
   { id: "render-jobs", label: "Render Jobs", icon: "⚙" },
   { id: "worker-status", label: "Worker Status", icon: "🖥" },
+  { id: "platform-health", label: "Platform Health", icon: "🛡" },
   { id: "logs", label: "Logs", icon: "≣" },
   { id: "settings", label: "Settings", icon: "⚙" },
 ];

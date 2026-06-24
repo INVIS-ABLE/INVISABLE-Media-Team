@@ -908,3 +908,39 @@ class BotOutputRow(Base):
             "output": self.output or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class ComplianceEventRow(Base):
+    """A platform-safety event the Compliance Watchdog reasons over.
+
+    Integrations (Postiz/n8n/metrics) and the operator feed these — warnings, failed
+    or removed posts, API errors, login/security prompts, reach/engagement drops,
+    blocked comments/actions. The Watchdog never *acts* on the platform; it reads
+    these to decide whether posting may safely continue.
+    """
+
+    __tablename__ = "compliance_event"
+
+    id = Column(String, primary_key=True)
+    platform = Column(String, default="", index=True)
+    kind = Column(String, nullable=False, index=True)
+    # warning | failed_post | removed_post | content_removed | api_error |
+    # login_prompt | security_check | reach_drop | engagement_drop |
+    # comment_blocked | action_blocked
+    severity = Column(String, default="medium")  # low | medium | high | critical
+    detail = Column(String, default="")
+    source = Column(String, default="")
+    resolved = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=_now, index=True)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "platform": self.platform,
+            "kind": self.kind,
+            "severity": self.severity,
+            "detail": self.detail,
+            "source": self.source,
+            "resolved": self.resolved,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
