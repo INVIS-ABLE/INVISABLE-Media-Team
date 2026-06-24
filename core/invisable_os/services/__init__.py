@@ -13,6 +13,7 @@ from invisable_os.services.backup import (
 )
 from invisable_os.services.consent import consent_state
 from invisable_os.services.dam import sync_post_to_dam
+from invisable_os.services.decay import DecayReport, detect_decay
 from invisable_os.services.fact_check import (
     CREDIBILITY_HIERARCHY,
     check_post,
@@ -40,6 +41,8 @@ from invisable_os.services.war_chest import (
 )
 
 __all__ = [
+    "detect_decay",
+    "DecayReport",
     "run_self_check",
     "SelfCheckReport",
     "persist_plan",

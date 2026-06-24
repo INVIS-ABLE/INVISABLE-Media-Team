@@ -54,6 +54,7 @@ from invisable_os.services import (
     calendar,
     check_post,
     consent_state,
+    detect_decay,
     export_snapshot,
     failsafe_status,
     finish_post,
@@ -715,6 +716,12 @@ def brain_stats() -> dict:
         "trend_signals": brain.count("trend_signal"),
         "cultural_notes": brain.count("cultural_note"),
     }
+
+
+@router.get("/v1/decay/scan")
+def decay_scan() -> dict:
+    """Content Decay Detector: flag overused hooks, near-duplicates, stale reserve, etc."""
+    return detect_decay().as_dict()
 
 
 @router.get("/v1/brain/alerts")
