@@ -8,6 +8,9 @@
     invisable approve <id>      # approve a queued item
     invisable publish           # take approved items live (dry-run unless Postiz set)
     invisable seed-tags         # add a couple of example tag-network members
+    invisable scan <mode>       # run a Remix scanner (e.g. scan_tool_theft)
+    invisable remix <mode>      # run a Remix create mode (e.g. create_parody --topic ...)
+    invisable seed-popculture   # seed the pop-culture & meme index
 """
 
 from __future__ import annotations
@@ -100,6 +103,56 @@ def _publish(_args) -> int:
     return 0
 
 
+def _scan(args) -> int:
+    from invisable_os.engines.remix import RemixTrendEngine
+    from invisable_os.models.remix import ContentMode
+
+    try:
+        mode = ContentMode(args.mode)
+    except ValueError:
+        print(f"unknown scan mode '{args.mode}'. "
+              f"Try one of: {', '.join(m.value for m in RemixTrendEngine.SCAN_MODES)}")
+        return 1
+    result = RemixTrendEngine().run(mode)
+    print(f"✓ {result['count']} signal(s) from {mode.value}")
+    for it in result["items"]:
+        print(f"  [{it['category']:22}] q={it['score']:.2f} {it['title'][:60]}")
+    return 0
+
+
+def _remix(args) -> int:
+    from invisable_os.engines.remix import RemixTrendEngine
+    from invisable_os.models.remix import ContentMode
+
+    try:
+        mode = ContentMode(args.mode)
+    except ValueError:
+        print(f"unknown create mode '{args.mode}'. "
+              f"Try one of: {', '.join(m.value for m in RemixTrendEngine.CREATE_MODES)}")
+        return 1
+    result = RemixTrendEngine().run(mode, topic=args.topic or "")
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+def _seed_popculture(_args) -> int:
+    from invisable_os.engines.remix import PopCultureIndex
+    from invisable_os.store import get_repository, init_db
+
+    init_db()
+    repo = get_repository()
+    index = PopCultureIndex()
+    n = 0
+    for ref in index.references:
+        repo.add_pop_culture(ref.model_dump())
+        n += 1
+    for fmt in index.formats:
+        repo.add_meme_format(fmt.model_dump())
+        n += 1
+    print(f"✓ seeded {n} pop-culture references / meme formats")
+    return 0
+
+
 def _seed_tags(_args) -> int:
     from invisable_os.models.departments import TagNetworkMember
     from invisable_os.store import get_repository, init_db
@@ -146,6 +199,19 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("publish", help="take approved items live").set_defaults(func=_publish)
     p_seed = sub.add_parser("seed-tags", help="add example tag-network members")
     p_seed.set_defaults(func=_seed_tags)
+
+    p_scan = sub.add_parser("scan", help="run a Remix scanner mode (e.g. scan_tool_theft)")
+    p_scan.add_argument("mode", help="a scan_* ContentMode")
+    p_scan.set_defaults(func=_scan)
+
+    p_remix = sub.add_parser("remix", help="run a Remix create mode (e.g. create_parody)")
+    p_remix.add_argument("mode", help="a create_* ContentMode")
+    p_remix.add_argument("--topic", default="", help="topic / trend to remix")
+    p_remix.set_defaults(func=_remix)
+
+    sub.add_parser(
+        "seed-popculture", help="seed the pop-culture & meme index"
+    ).set_defaults(func=_seed_popculture)
 
     args = parser.parse_args(argv)
     return args.func(args)

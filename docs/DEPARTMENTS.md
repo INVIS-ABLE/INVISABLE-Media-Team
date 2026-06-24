@@ -17,7 +17,12 @@ into "content that moves INVISABLE forward".
 | 🎯 **Growth** | `engagement` | Viral Hook Librarian, Comment-to-Content, Community Story | `hook_library`, `community_story` |
 | 🎨 **Creative** | `personality` | Humour Agent, Meme Generator, Story Arc Builder | — |
 | 🎤 **PR** | — | Press/Media Agent, Press Release Generator | `media_contact` |
+| 🎭 **Remix, Parody & Trend Intelligence** | `remix` | Trend Scanner, Rights & Copyright Officer, Parody Writer, Reaction/Voiceover/Pop-Culture/Subtitle agents | `scanner_sources`, `scanned_items`, `media_assets`, `pop_culture_references`, `meme_formats`, `remix_jobs`, `extracted_hooks`, `subtitles` |
 | 🏛️ **Governance** | `guardrails`, `mission`, `quality` | Brand Guardian, Compliance, **Mission Alignment**, Quality Control | `mission_score`, `risk_flag` |
+
+> 🎭 The Remix department is a **rights-safe** trend scanner + parody/remix studio:
+> it analyses, parodies, and transforms, but never downloads-and-reuploads other
+> people's videos as-is. See [`REMIX_ENGINE.md`](REMIX_ENGINE.md).
 
 ## How a piece of content flows through the org
 

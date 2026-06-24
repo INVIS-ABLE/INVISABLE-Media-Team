@@ -147,3 +147,294 @@ class PerfSignalRow(Base):
     value = Column(Float, default=0.0)
     themes = Column(JSON, default=list)
     observed_at = Column(DateTime(timezone=True), default=_now)
+
+
+# ============================================================================
+# Remix, Parody & Trend Intelligence department
+# ============================================================================
+
+
+class ScannerSourceRow(Base):
+    """A feed/source the scanner monitors (scanner_sources)."""
+
+    __tablename__ = "scanner_source"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    type = Column(String, default="rss")  # rss | trends | forum | search | research
+    url = Column(String, default="")
+    topic_area = Column(String, default="", index=True)
+    platform = Column(String, default="")
+    scan_frequency = Column(String, default="daily")
+    enabled = Column(Boolean, default=True)
+    notes = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "url": self.url,
+            "topic_area": self.topic_area,
+            "platform": self.platform,
+            "scan_frequency": self.scan_frequency,
+            "enabled": self.enabled,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ScannedItemRow(Base):
+    """An abstracted scanned trend/reference (scanned_items)."""
+
+    __tablename__ = "scanned_item"
+
+    id = Column(String, primary_key=True)
+    source_id = Column(String, default="", index=True)
+    url = Column(String, default="")
+    title = Column(String, nullable=False)
+    creator = Column(String, default="")
+    platform = Column(String, default="")
+    summary = Column(String, default="")
+    transcript = Column(String, default="")
+    topic_tags = Column(JSON, default=list)
+    trend_score = Column(Float, default=0.0)
+    humour_score = Column(Float, default=0.0)
+    construction_score = Column(Float, default=0.0)
+    invisible_illness_score = Column(Float, default=0.0)
+    sponsor_score = Column(Float, default=0.0)
+    risk_score = Column(Float, default=0.0)
+    rights_status = Column(String, default="reference_only", index=True)
+    status = Column(String, default="new", index=True)  # new | actioned | dismissed
+    date_found = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "source_id": self.source_id,
+            "url": self.url,
+            "title": self.title,
+            "creator": self.creator,
+            "platform": self.platform,
+            "summary": self.summary,
+            "transcript": self.transcript,
+            "topic_tags": self.topic_tags or [],
+            "trend_score": self.trend_score,
+            "humour_score": self.humour_score,
+            "construction_score": self.construction_score,
+            "invisible_illness_score": self.invisible_illness_score,
+            "sponsor_score": self.sponsor_score,
+            "risk_score": self.risk_score,
+            "rights_status": self.rights_status,
+            "status": self.status,
+            "date_found": self.date_found.isoformat() if self.date_found else None,
+        }
+
+
+class MediaAssetRow(Base):
+    """A media asset with rights/consent metadata (media_assets)."""
+
+    __tablename__ = "media_asset"
+
+    id = Column(String, primary_key=True)
+    file_path = Column(String, default="")
+    source_url = Column(String, default="")
+    title = Column(String, default="")
+    asset_type = Column(String, default="video")  # video | audio | image | voice | broll
+    owner = Column(String, default="")
+    rights_status = Column(String, default="owned", index=True)
+    licence_notes = Column(String, default="")
+    consent_id = Column(String, default="")
+    expiry_date = Column(String, nullable=True)
+    allowed_platforms = Column(JSON, default=list)
+    allowed_uses = Column(JSON, default=list)
+    blocked_uses = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "file_path": self.file_path,
+            "source_url": self.source_url,
+            "title": self.title,
+            "asset_type": self.asset_type,
+            "owner": self.owner,
+            "rights_status": self.rights_status,
+            "licence_notes": self.licence_notes,
+            "consent_id": self.consent_id,
+            "expiry_date": self.expiry_date,
+            "allowed_platforms": self.allowed_platforms or [],
+            "allowed_uses": self.allowed_uses or [],
+            "blocked_uses": self.blocked_uses or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class PopCultureRow(Base):
+    """A pop-culture reference (pop_culture_references)."""
+
+    __tablename__ = "pop_culture_reference"
+
+    id = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    source_type = Column(String, default="film")
+    reference_description = Column(String, default="")
+    exact_quote = Column(String, default="")
+    paraphrase_safe_version = Column(String, default="")
+    tone = Column(String, default="")
+    humour_style = Column(String, default="")
+    copyright_risk = Column(String, default="medium")
+    use_allowed = Column(Boolean, default=True)
+    suggested_invisable_angle = Column(String, default="")
+    platforms = Column(JSON, default=list)
+    related_topics = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "source_type": self.source_type,
+            "reference_description": self.reference_description,
+            "exact_quote": self.exact_quote,
+            "paraphrase_safe_version": self.paraphrase_safe_version,
+            "tone": self.tone,
+            "humour_style": self.humour_style,
+            "copyright_risk": self.copyright_risk,
+            "use_allowed": self.use_allowed,
+            "suggested_invisable_angle": self.suggested_invisable_angle,
+            "platforms": self.platforms or [],
+            "related_topics": self.related_topics or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class MemeFormatRow(Base):
+    """A reusable meme/format template (meme_formats)."""
+
+    __tablename__ = "meme_format"
+
+    id = Column(String, primary_key=True)
+    format_name = Column(String, nullable=False)
+    description = Column(String, default="")
+    structure = Column(String, default="")
+    example_safe_version = Column(String, default="")
+    platform = Column(String, default="")
+    humour_style = Column(String, default="")
+    risk_score = Column(Float, default=0.0)
+    related_topics = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "format_name": self.format_name,
+            "description": self.description,
+            "structure": self.structure,
+            "example_safe_version": self.example_safe_version,
+            "platform": self.platform,
+            "humour_style": self.humour_style,
+            "risk_score": self.risk_score,
+            "related_topics": self.related_topics or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class RemixJobRow(Base):
+    """A remix/parody/voiceover job moving toward approval (remix_jobs)."""
+
+    __tablename__ = "remix_job"
+
+    id = Column(String, primary_key=True)
+    input_topic = Column(String, default="")
+    reference_item_id = Column(String, default="")
+    asset_id = Column(String, default="")
+    output_type = Column(String, default="parody")  # parody | reaction | voiceover | meme
+    mode = Column(String, default="create_parody")
+    script = Column(String, default="")
+    voiceover_script = Column(String, default="")
+    caption = Column(String, default="")
+    hashtags = Column(JSON, default=list)
+    tags = Column(JSON, default=list)
+    platform = Column(String, default="")
+    rights_check_status = Column(String, default="pending")  # pending | passed | failed
+    brand_check_status = Column(String, default="pending")
+    approval_status = Column(String, default="pending_review")
+    risk_score = Column(Float, default=0.0)
+    pack = Column(JSON, default=dict)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "input_topic": self.input_topic,
+            "reference_item_id": self.reference_item_id,
+            "asset_id": self.asset_id,
+            "output_type": self.output_type,
+            "mode": self.mode,
+            "script": self.script,
+            "voiceover_script": self.voiceover_script,
+            "caption": self.caption,
+            "hashtags": self.hashtags or [],
+            "tags": self.tags or [],
+            "platform": self.platform,
+            "rights_check_status": self.rights_check_status,
+            "brand_check_status": self.brand_check_status,
+            "approval_status": self.approval_status,
+            "risk_score": self.risk_score,
+            "pack": self.pack or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ExtractedHookRow(Base):
+    """A hook surfaced from a transcript (extracted_hooks)."""
+
+    __tablename__ = "extracted_hook"
+
+    id = Column(String, primary_key=True)
+    scanned_item_id = Column(String, default="", index=True)
+    hook_text = Column(String, default="")
+    hook_type = Column(String, default="")
+    platform = Column(String, default="")
+    strength_score = Column(Float, default=0.0)
+    adapted_invisable_version = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "scanned_item_id": self.scanned_item_id,
+            "hook_text": self.hook_text,
+            "hook_type": self.hook_type,
+            "platform": self.platform,
+            "strength_score": self.strength_score,
+            "adapted_invisable_version": self.adapted_invisable_version,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SubtitleRow(Base):
+    """A generated subtitle track (subtitles)."""
+
+    __tablename__ = "subtitle"
+
+    id = Column(String, primary_key=True)
+    asset_id = Column(String, default="", index=True)
+    transcript = Column(String, default="")
+    srt_path = Column(String, default="")
+    burned_video_path = Column(String, default="")
+    language = Column(String, default="en")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "asset_id": self.asset_id,
+            "transcript": self.transcript,
+            "srt_path": self.srt_path,
+            "burned_video_path": self.burned_video_path,
+            "language": self.language,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

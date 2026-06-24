@@ -78,3 +78,25 @@ pass the guardrails (stricter emoji limits for comments). Strengthens relationsh
 and represents INVISABLE® well; never farms reach.
 
 `POST /v1/engagement/comment`
+
+## Remix, Parody & Trend Intelligence Engine — `remix.py`
+
+> Scan the internet, index culture, track trends, store references, and create
+> **original** INVISABLE® content from them — a rights-safe remix studio, not a
+> "steal and repost" machine.
+
+Sub-systems: **TrendScanner** (six scan modes → abstracted `trend_signal`s),
+**RightsManager** (conservative classification + yt-dlp download gating),
+**PopCultureIndex** (paraphrase-safe references + meme formats), **ParodyEngine**
+(original parody/skit/voiceover packs, brand-safety gated), **VoiceoverEngine**
+(ElevenLabs + Whisper/auto-subtitle + FFmpeg job over *usable* footage only).
+
+The **core rule** is enforced in [`guardrails/rights.py`](../core/invisable_os/guardrails/rights.py):
+the system must never automatically download and reupload other people's videos
+as-is. Only `owned`, `licensed`, `public_domain`, `creative_commons`,
+`user_submitted_consent`, and `platform_duet_stitch` may enter video assembly;
+`reference_only` can inspire ideas but is never reuploaded.
+
+Full design: [`REMIX_ENGINE.md`](REMIX_ENGINE.md).
+
+`POST /v1/scanner/scan` · `POST /v1/remix/create` · `POST /v1/voiceover/create` · `GET /v1/rights`

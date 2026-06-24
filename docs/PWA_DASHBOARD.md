@@ -62,6 +62,35 @@ Each card surfaces: pillar, platform, **mission verdict**, **quality average**, 
 | Brain learning stats | `GET /v1/brain/stats` |
 | Values | `GET /v1/values` |
 
+## 🎭 Remix, Parody & Trend Intelligence
+
+A rights-safe scanner + remix studio. **Core rule:** the system analyses, parodies,
+and transforms — it never downloads-and-reuploads other people's videos as-is.
+Full design in [`REMIX_ENGINE.md`](REMIX_ENGINE.md).
+
+### Screens
+
+| Screen | What it does | API |
+| ------ | ------------ | --- |
+| **Scanner Dashboard** | The scan buttons (construction · invisible illness · autoimmune · tool theft · pop culture · TikTok · Instagram) | `POST /v1/scanner/scan`, `GET /v1/remix/modes` |
+| **Reference Inbox** | Scanned links/topics: title, source, topic, rights status, risk score, *generate* | `GET /v1/scanner/items`, `POST /v1/scanner/manual-link` |
+| **Rights Manager** | Set each asset's status (owned/licensed/CC/public-domain/consented/reference-only/blocked) | `GET /v1/media`, `PATCH /v1/media/{id}/rights`, `GET /v1/rights` |
+| **Remix Studio** | Topic/link/reference + platform + humour + type + voice + partner → parody/voiceover/shot-list/caption/hashtags/tags | `POST /v1/remix/create` |
+| **Pop Culture Index** | Film/TV/meme/sayings/phrases with paraphrase-safe versions + copyright risk | `GET/POST /v1/popculture`, `GET/POST /v1/meme-formats` |
+| **Asset Library** | Owned/approved clips, founder/ambassador/partner assets, B-roll, voiceovers, subtitles, exports | `GET /v1/media` |
+| **Voiceover Queue** | Script · voice · ElevenLabs status · audio · subtitle status · export status | `POST /v1/voiceover/create` |
+
+### The 15 buttons
+
+`Scan Trends · Scan Construction · Scan Tool Theft · Scan Invisible Illness · Scan
+Autoimmune Updates · Scan Pop Culture` (scan) — `Create Parody · Reaction Video ·
+Voiceover Remix · Meme Batch · Trades Humour · Founder Skit · Sponsor-Safe Version ·
+TikTok Trend Version · Instagram Reel Version` (create).
+
+Every reference defaults to **reference_only** (inspiration only). Generated media
+may use only `owned / licensed / public_domain / creative_commons /
+user_submitted_consent / platform_duet_stitch` assets — enforced server-side.
+
 ## Core interactions
 
 - **Approve** → moves to the scheduler queue.
