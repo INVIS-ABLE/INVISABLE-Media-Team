@@ -5,6 +5,12 @@ queue, and driving approved items out to the publisher.
 """
 
 from invisable_os.services.attribution import post_attribution
+from invisable_os.services.backup import (
+    export_snapshot,
+    failsafe_status,
+    restore_snapshot,
+    verify_snapshot,
+)
 from invisable_os.services.consent import consent_state
 from invisable_os.services.dam import sync_post_to_dam
 from invisable_os.services.decay import DecayReport, detect_decay
@@ -59,6 +65,10 @@ __all__ = [
     "sync_metrics",
     "post_attribution",
     "theme_alerts",
+    "export_snapshot",
+    "restore_snapshot",
+    "verify_snapshot",
+    "failsafe_status",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
