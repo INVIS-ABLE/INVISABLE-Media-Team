@@ -21,6 +21,7 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
+from invisable_os.guardrails.model_licensing import licence_check
 from invisable_os.media.safe_area import (
     Aspect,
     Box,
@@ -138,6 +139,11 @@ class VideoSpec(BaseModel):
     clutter: float = 0.0  # 0–1, visual busyness; 0 = clean
     probe_backend: str = "annotation"  # how the spec was built (annotation/ffmpeg/…)
 
+    # Generation/detector models used to build the clip (ComfyUI/Flux/Wan/…). Gated
+    # for commercial-use licence — e.g. FLUX.1 [dev] is non-commercial.
+    generation_models: list[str] = Field(default_factory=list)
+    commercial_use: bool = True  # is this clip destined for paid/commercial use?
+
 
 # --- QC report ---------------------------------------------------------------
 
@@ -216,6 +222,7 @@ class VideoQualityGate:
         checks.extend(self._captions(spec))
         checks.append(self._caption_accuracy(spec))
         checks.extend(self._visual(spec))
+        checks.append(self._model_licence(spec))
         return VideoQCReport(checks=checks)
 
     # -- container ----------------------------------------------------------
@@ -367,6 +374,21 @@ class VideoQualityGate:
             status=CheckStatus.PASS if ok else CheckStatus.FAIL,
             detail=f"{covered:.0%} of spoken words captioned (min {MIN_CAPTION_ACCURACY:.0%})",
         )
+
+    # -- generation-model licence (commercial-use gate) ---------------------
+
+    def _model_licence(self, spec: VideoSpec) -> QCCheck:
+        if not spec.generation_models:
+            return QCCheck(name="model_licence", status=CheckStatus.PASS,
+                           detail="no generation models declared")
+        verdict = licence_check(spec.generation_models, commercial=spec.commercial_use)
+        if verdict.passed:
+            note = "; ".join(verdict.notes) if verdict.notes else "all models cleared"
+            return QCCheck(name="model_licence", status=CheckStatus.PASS,
+                           detail=f"cleared: {', '.join(verdict.cleared)} — {note}".strip(" —"))
+        problems = verdict.blocked + [f"{u} (unregistered)" for u in verdict.unknown]
+        return QCCheck(name="model_licence", status=CheckStatus.FAIL,
+                       detail="not cleared for commercial use: " + ", ".join(problems))
 
     # -- visual (the headline: obstruction + safe area + readability) -------
 
