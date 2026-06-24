@@ -161,8 +161,12 @@ until configured — so integration is "wire the backend", not "rebuild the seam
    lets us swap backends. The existing renderer/probe seams already enforce this.
 2. **Everything degrades to dry-run.** No backend is a hard dependency for the pipeline
    to run; configure env vars to switch a backend from dry-run to live.
-3. **Licence is a gate, not an afterthought.** The `Copyright Risk Agent` should block
-   any asset produced by a non-commercial model (Flux dev) or any clip using uncleared
-   music — the Video Quality Gate already has the `music_licence` check; extend the same
-   pattern to generated visuals.
+3. **Licence is a gate, not an afterthought.** The `Copyright Risk Agent` blocks any
+   asset produced by a non-commercial model (Flux dev, HunyuanVideo in the UK/EU,
+   Ultralytics YOLO) or any clip using uncleared music. This is **implemented**: the
+   Video Quality Gate has both the `music_licence` check and the `model_licence` check
+   ([`guardrails/model_licensing.py`](../core/invisable_os/guardrails/model_licensing.py)),
+   a fail-closed registry of generation/detector models → commercial-use permission.
+   Set `VideoSpec.generation_models` to the models that built a clip; unknown models are
+   blocked until registered. See [PRODUCTION_STUDIO.md](./PRODUCTION_STUDIO.md#the-generation-model-licence-gate).
 4. **Commercial-use flags (🚩) are blockers until cleared by a human**, not warnings.
