@@ -14,25 +14,14 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{$env.INVISABLE_CORE_URL}}/v1/partners",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/relationships/followups",
         "options": {}
       },
-      "id": "partners",
-      "name": "List partners",
+      "id": "followups",
+      "name": "Relationships due a follow-up",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [ 480, 300 ]
-    },
-    {
-      "parameters": {
-        "fieldToSplitOut": "partners",
-        "options": {}
-      },
-      "id": "split",
-      "name": "Each partner",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [ 720, 300 ]
     },
     {
       "parameters": {
@@ -41,22 +30,33 @@
           "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{$json.status}}",
-              "rightValue": "active",
-              "operator": { "type": "string", "operation": "equals" }
+              "leftValue": "={{$json.count}}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
             }
           ]
         }
       },
-      "id": "due",
-      "name": "Active relationship?",
+      "id": "any_due",
+      "name": "Any due today?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [ 960, 300 ]
+      "position": [ 720, 300 ]
     },
     {
       "parameters": {
-        "content": "Surfaces active partners so the founder is nudged to keep relationships warm (PWA notification). A dedicated `relationship_touch.follow_up_at <= today` query is a small future core endpoint; until then this lists partners and filters by status. Read-only — it never contacts anyone automatically.",
+        "fieldToSplitOut": "followups",
+        "options": {}
+      },
+      "id": "split",
+      "name": "Each follow-up",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [ 960, 240 ]
+    },
+    {
+      "parameters": {
+        "content": "Queries `relationship_touch.follow_up_at <= today` via `GET /v1/relationships/followups` and surfaces each due touch so the founder is nudged to keep the relationship warm (PWA notification). Read-only — it never contacts anyone automatically. Log new contacts with `POST /v1/relationships/touch`, setting `follow_up_at` for the next nudge.",
         "height": 180,
         "width": 360
       },
@@ -64,13 +64,13 @@
       "name": "Founder nudge (read-only)",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [ 1200, 240 ]
+      "position": [ 960, 440 ]
     }
   ],
   "connections": {
-    "Every morning 09:03": { "main": [ [ { "node": "List partners", "type": "main", "index": 0 } ] ] },
-    "List partners": { "main": [ [ { "node": "Each partner", "type": "main", "index": 0 } ] ] },
-    "Each partner": { "main": [ [ { "node": "Active relationship?", "type": "main", "index": 0 } ] ] }
+    "Every morning 09:03": { "main": [ [ { "node": "Relationships due a follow-up", "type": "main", "index": 0 } ] ] },
+    "Relationships due a follow-up": { "main": [ [ { "node": "Any due today?", "type": "main", "index": 0 } ] ] },
+    "Any due today?": { "main": [ [ { "node": "Each follow-up", "type": "main", "index": 0 } ], [] ] }
   },
   "settings": { "executionOrder": "v1" },
   "tags": [ { "name": "invisable-os" } ]
