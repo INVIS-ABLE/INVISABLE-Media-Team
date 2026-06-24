@@ -32,6 +32,7 @@ from invisable_os.models.metrics import PerformanceSignal
 from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.scheduling import default_week
 from invisable_os.services import (
+    assemble_post,
     calendar,
     produce_media,
     publish_due,
@@ -261,6 +262,12 @@ def get_calendar() -> dict:
 def media_produce(item_id: str) -> dict:
     """Render a queued item's flywheel assets into the media library."""
     return produce_media(item_id)
+
+
+@router.post("/v1/media/assemble/{item_id}")
+def media_assemble(item_id: str) -> dict:
+    """Stitch a post's rendered visual + voiceover + captions into a final cutdown."""
+    return assemble_post(item_id)
 
 
 @router.get("/v1/media")

@@ -101,8 +101,11 @@ honest state of each piece:
   and a real SRT caption writer behind the renderers, with per-asset dry-run
   fallback. Live when a backend is configured. Tested with mocked transports. See
   [`MEDIA.md`](MEDIA.md).
-- ⏳ **Video assembly** — OpenCut timeline assembly (image + voice + captions →
-  finished cutdown); ResourceSpace asset library sync.
+- ✅ **Video assembly** — FFmpeg executor (`media/assembly.py`) stitches a post's
+  rendered visual + voiceover + burned-in captions into a finished `.mp4`; pure
+  command-builder + injectable runner, per-asset dry-run fallback. `invisable
+  assemble`, `POST /v1/media/assemble/{id}`. Tested. See [`MEDIA.md`](MEDIA.md).
+- ⏳ **ResourceSpace asset-library sync** + Metricool metrics into the Watchtower.
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
 - ✅ **PWA front-end** — installable dashboard (`core/invisable_os/web/`) served at
   `/app`: Today / Queue / Calendar / Media / Agents / Values, wired to the API.

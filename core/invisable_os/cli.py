@@ -228,6 +228,20 @@ def _produce(args) -> int:
     return 0
 
 
+def _assemble(args) -> int:
+    from invisable_os.services import assemble_post
+    from invisable_os.store import init_db
+
+    init_db()
+    res = assemble_post(args.id)
+    if "error" in res:
+        print(res["error"], args.id)
+        return 1
+    print(f"✓ assembled [{res['backend']}] final video for {args.id[:8]}: {res['final_video']}")
+    print(f"    inputs: {res['inputs']}")
+    return 0
+
+
 def _seed_tags(_args) -> int:
     from invisable_os.models.departments import TagNetworkMember
     from invisable_os.store import get_repository, init_db
@@ -285,6 +299,10 @@ def main(argv: list[str] | None = None) -> int:
     p_produce = sub.add_parser("produce", help="render a queued item's media assets")
     p_produce.add_argument("id")
     p_produce.set_defaults(func=_produce)
+
+    p_assemble = sub.add_parser("assemble", help="stitch a post's assets into a final video")
+    p_assemble.add_argument("id")
+    p_assemble.set_defaults(func=_assemble)
 
     p_scan = sub.add_parser("scan", help="run a Remix scanner mode (e.g. scan_tool_theft)")
     p_scan.add_argument("mode", help="a scan_* ContentMode")
