@@ -23,6 +23,7 @@ from invisable_os.engines import (
 from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
+from invisable_os.guardrails.model_licensing import MODEL_LICENCES, licence_check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
 from invisable_os.media.probes import probe_video
 from invisable_os.media.safe_area import Surface, VisualLayoutAgent, get_template
@@ -33,12 +34,19 @@ from invisable_os.models.metrics import PerformanceSignal
 from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.scheduling import default_week
 from invisable_os.services import (
+    CREDIBILITY_HIERARCHY,
     assemble_post,
     calendar,
+    check_post,
     produce_media,
     publish_due,
+    reserve_health,
     run_and_queue_daily,
     schedule_next,
+    select_next,
+    stock_approved,
+    sync_metrics,
+    sync_post_to_dam,
 )
 from invisable_os.store import get_repository
 
@@ -136,14 +144,30 @@ def harvest(req: HarvestRequest) -> dict:
 
 @router.post("/v1/watchtower/ingest")
 def watchtower_ingest(req: WatchtowerRequest) -> dict:
-    """Ingest performance signals, learn, and compute the Founder Recognition Index."""
+    """Ingest performance signals, learn, and compute the Founder Recognition Index.
+
+    The raw signals and the resulting Founder Recognition Index are persisted, so
+    recognition can be tracked over time (see ``GET /v1/founder/recognition``).
+    """
     watchtower = AlgorithmWatchtower()
     report = watchtower.ingest(req.signals)
+    repo = get_repository()
+    for s in req.signals:
+        repo.record_signal(s.candidate_id, s.platform, s.metric.value, s.value, s.themes)
+    repo.record_founder_recognition(report.founder_recognition_index, report.totals)
     return {
         "totals": report.totals,
         "founder_recognition_index": report.founder_recognition_index,
         "learnings": report.learnings,
     }
+
+
+@router.get("/v1/founder/recognition")
+def founder_recognition() -> dict:
+    """The Founder Recognition Index over time, as ingested by the Watchtower."""
+    history = get_repository().list_founder_recognition()
+    latest = history[-1]["index_value"] if history else 0.0
+    return {"latest": latest, "points": len(history), "history": history}
 
 
 class DailyRequest(BaseModel):
@@ -274,6 +298,46 @@ def media_assemble(item_id: str) -> dict:
 @router.get("/v1/media")
 def list_media(item_id: str | None = None) -> dict:
     return {"assets": get_repository().list_media(item_id)}
+
+
+# --- Integrations: ResourceSpace (DAM) + Metricool (metrics) -----------------
+
+
+class MetricsSyncRequest(BaseModel):
+    signals: list[PerformanceSignal] | None = None
+    start: str = ""
+    end: str = ""
+
+
+@router.post("/v1/dam/sync/{item_id}")
+def dam_sync(item_id: str) -> dict:
+    """Push a post's finished assets into ResourceSpace (dry-run unless configured)."""
+    return sync_post_to_dam(item_id)
+
+
+@router.post("/v1/metrics/sync")
+def metrics_sync(req: MetricsSyncRequest) -> dict:
+    """Ingest performance metrics (from Metricool, or provided) into the Watchtower."""
+    return sync_metrics(signals=req.signals, start=req.start, end=req.end)
+
+
+@router.get("/v1/integrations")
+def integrations_status() -> dict:
+    """Report which external integrations are configured."""
+    import os
+    import shutil
+
+    from invisable_os.integrations import MetricoolClient, ResourceSpaceClient
+
+    return {
+        "resourcespace": ResourceSpaceClient().configured,
+        "metricool": MetricoolClient().configured,
+        "postiz": bool(os.getenv("POSTIZ_API_URL") and os.getenv("POSTIZ_API_KEY")),
+        "comfyui": bool(os.getenv("COMFYUI_BASE_URL")),
+        "elevenlabs": bool(os.getenv("ELEVENLABS_API_KEY")),
+        "claude": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "ffmpeg": shutil.which("ffmpeg") is not None,
+    }
 
 
 # --- Relationship: tag network & partners -----------------------------------
@@ -444,6 +508,33 @@ def video_probe(req: ProbeRequest) -> dict:
     return {"spec": spec.model_dump(), "report": VideoQualityGate().check(spec).summary()}
 
 
+# --- Generation-model licensing ---------------------------------------------
+
+
+class LicenceCheckRequest(BaseModel):
+    models: list[str]
+    commercial: bool = True
+
+
+@router.get("/v1/licensing/models")
+def list_model_licences() -> dict:
+    """The generation/detector models known to the licence gate."""
+    return {
+        "count": len(MODEL_LICENCES),
+        "models": [
+            {"name": m.name, "licence": m.licence, "commercial": m.commercial,
+             "kind": m.kind, "verify": m.verify, "note": m.note}
+            for m in MODEL_LICENCES
+        ],
+    }
+
+
+@router.post("/v1/licensing/check")
+def check_model_licences(req: LicenceCheckRequest) -> dict:
+    """Gate a list of generation/detector models for commercial-use licence."""
+    return licence_check(req.models, commercial=req.commercial).model_dump()
+
+
 def _candidate_from(req: IdeaRequest) -> ContentCandidate:
     return ContentCandidate(
         brief=req.brief,
@@ -465,3 +556,112 @@ def brain_stats() -> dict:
         "trend_signals": brain.count("trend_signal"),
         "cultural_notes": brain.count("cultural_note"),
     }
+
+
+# --- Credible sources & the fact-check rule ---------------------------------
+
+
+class SourceRequest(BaseModel):
+    name: str
+    url: str = ""
+    source_type: str = "news"
+    credibility_level: int = 3
+    country: str = "UK"
+    topic_area: str = ""
+    rss_url: str = ""
+    enabled: bool = True
+    notes: str = ""
+
+
+class SourceClaimRequest(BaseModel):
+    source_id: str = ""
+    title: str = ""
+    claim_text: str = ""
+    quoted_text: str = ""
+    paraphrase: str = ""
+    url: str = ""
+    publication_date: str | None = None
+    confidence_score: float = 0.5
+    primary_or_secondary: str = "secondary"
+    fact_checked_status: str = "unverified"
+
+
+class FactCheckRequest(BaseModel):
+    text: str
+    source_ids: list[str] = Field(default_factory=list)
+
+
+@router.get("/v1/sources")
+def list_sources(enabled: bool | None = None) -> dict:
+    """List credible sources, ordered best-credibility-first."""
+    return {"sources": get_repository().list_sources(enabled=enabled)}
+
+
+@router.post("/v1/sources")
+def add_source(req: SourceRequest) -> dict:
+    return {"id": get_repository().add_source(req.model_dump())}
+
+
+@router.get("/v1/sources/hierarchy")
+def source_hierarchy() -> dict:
+    """The preferred source-credibility hierarchy (tier 1 best → 8 lowest)."""
+    return {
+        "hierarchy": [
+            {"source_type": k, "tier": tier, "label": label}
+            for k, (tier, label) in sorted(CREDIBILITY_HIERARCHY.items(), key=lambda kv: kv[1][0])
+        ]
+    }
+
+
+@router.get("/v1/sources/{source_id}/claims")
+def list_source_claims(source_id: str) -> dict:
+    return {"claims": get_repository().list_source_claims(source_id=source_id)}
+
+
+@router.post("/v1/sources/{source_id}/claims")
+def add_source_claim(source_id: str, req: SourceClaimRequest) -> dict:
+    payload = req.model_dump()
+    payload["source_id"] = source_id
+    return {"id": get_repository().add_source_claim(payload)}
+
+
+@router.post("/v1/factcheck")
+def factcheck(req: FactCheckRequest) -> dict:
+    """Apply the Credible Source Rule: is this fact-led, and is it sourced?"""
+    repo = get_repository()
+    sources = [s for sid in req.source_ids if (s := repo.get_source(sid))]
+    return check_post(req.text, sources).as_dict()
+
+
+# --- Content War Chest (the reserve) ----------------------------------------
+
+
+class WarChestSelectRequest(BaseModel):
+    platform: str | None = None
+    category: str | None = None
+    mark_used: bool = True
+
+
+@router.get("/v1/warchest")
+def warchest_health() -> dict:
+    """Reserve level, tier, recommended cadence and category spread."""
+    return reserve_health()
+
+
+@router.get("/v1/warchest/items")
+def warchest_items(category: str | None = None, reserve_status: str | None = "ready") -> dict:
+    """List reserve items, optionally filtered by category / reserve status."""
+    items = get_repository().list_war_chest(category=category, reserve_status=reserve_status)
+    return {"items": items}
+
+
+@router.post("/v1/warchest/stock")
+def warchest_stock() -> dict:
+    """Stock all approved queue items into the War Chest (idempotent)."""
+    return stock_approved()
+
+
+@router.post("/v1/warchest/select")
+def warchest_select(req: WarChestSelectRequest) -> dict:
+    """Draw the best non-repetitive ready item for the next slot, and mark it used."""
+    return select_next(platform=req.platform, category=req.category, mark_used=req.mark_used)

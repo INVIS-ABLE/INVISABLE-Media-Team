@@ -141,6 +141,7 @@ API: `POST /v1/video/qc`.
 | no text too close to the edge | `edge_safe` |
 | no blurry output | `sharpness` |
 | no visual clutter | `visual_clutter` |
+| generation models cleared for commercial use | `model_licence` |
 
 A check is `pass`, `warn` (surfaced, non-blocking) or `fail` (blocks the gate). The
 report lists failures and warnings:
@@ -181,3 +182,27 @@ unit-tested against captured tool output, so it's verified even without the bina
 See [TOOL_INTEGRATION_REVIEW.md](./TOOL_INTEGRATION_REVIEW.md) for the licence,
 security, maintenance and Docker assessment of each, and whether to integrate it
 directly or only use it as inspiration.
+
+### The generation-model licence gate
+
+Footage provenance (owned / licensed / CC / reference-only) is gated by the Remix
+department's `reuse_check` ([`guardrails/rights.py`](../core/invisable_os/guardrails/rights.py)).
+A **different axis** matters for AI-generated assets: *does the model's licence permit
+commercial use?* FLUX.1 [dev] is non-commercial; **HunyuanVideo's community licence
+excludes the UK/EU**; Ultralytics YOLO is AGPL. That axis is gated by
+[`guardrails/model_licensing.py`](../core/invisable_os/guardrails/model_licensing.py):
+
+- a registry of generation/detector models → commercial-use permission;
+- **fail-closed** — an unknown model is blocked until a human registers it;
+- wired into the Video Quality Gate as the `model_licence` check (set
+  `VideoSpec.generation_models` to the models that built the clip);
+- `GET /v1/licensing/models` and `POST /v1/licensing/check` expose it directly.
+
+```python
+from invisable_os.guardrails.model_licensing import licence_check
+licence_check(["flux-schnell", "wan2.1"])     # passed=True
+licence_check(["flux-dev"]).blocked           # ["FLUX.1 [dev]"] — non-commercial
+```
+
+This is the enforcement the tool review recommends: the Copyright Risk Agent blocks any
+asset produced by a non-commercial model before it can reach approval.

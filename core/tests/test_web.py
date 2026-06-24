@@ -50,8 +50,14 @@ def test_dashboard_only_uses_existing_api_endpoints():
     known_prefixes = {
         "/v1/daily/plan", "/v1/queue", "/v1/calendar", "/v1/media", "/v1/agents",
         "/v1/values", "/v1/personality/mix", "/v1/channels", "/v1/brain/stats",
-        # Remix department screens (Scanner / Inbox / Remix Studio / Rights Manager)
+        # Remix department screens (Scanner / Inbox / Remix Studio / Rights Manager /
+        # Pop Culture Index / Voiceover Queue / Asset Library)
         "/v1/remix", "/v1/scanner", "/v1/rights",
+        "/v1/popculture", "/v1/meme", "/v1/voiceover",
+        # Content War Chest screen
+        "/v1/warchest",
+        # Source Control Centre (credible sources + fact-check)
+        "/v1/sources", "/v1/factcheck",
     }
     for path in called:
         assert any(path.startswith(p) for p in known_prefixes), f"dashboard calls unknown {path}"
@@ -59,5 +65,8 @@ def test_dashboard_only_uses_existing_api_endpoints():
     for path in (
         "/v1/calendar", "/v1/agents", "/v1/values", "/v1/brain/stats",
         "/v1/remix/modes", "/v1/scanner/items", "/v1/rights", "/v1/rights-assets",
+        "/v1/popculture", "/v1/meme-formats",
+        "/v1/warchest", "/v1/warchest/items",
+        "/v1/sources", "/v1/sources/hierarchy",
     ):
         assert client.get(path).status_code == 200, path

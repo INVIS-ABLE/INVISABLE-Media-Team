@@ -105,7 +105,11 @@ honest state of each piece:
   rendered visual + voiceover + burned-in captions into a finished `.mp4`; pure
   command-builder + injectable runner, per-asset dry-run fallback. `invisable
   assemble`, `POST /v1/media/assemble/{id}`. Tested. See [`MEDIA.md`](MEDIA.md).
-- ⏳ **ResourceSpace asset-library sync** + Metricool metrics into the Watchtower.
+- ✅ **Integrations** (`integrations/`) — **ResourceSpace** DAM sync (push finished
+  assets → `dam_ref`) and **Metricool** metrics → Watchtower (close the learning
+  loop: real performance → Founder Recognition Index). Graceful offline; tested with
+  mocked transports. `invisable dam-sync` / `metrics-sync`; `POST /v1/dam/sync/{id}`,
+  `/v1/metrics/sync`, `GET /v1/integrations`. See [`INTEGRATIONS.md`](INTEGRATIONS.md).
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
 - ✅ **PWA front-end** — installable dashboard (`core/invisable_os/web/`) served at
   `/app`: Today / Queue / Calendar / Media / Agents / Values, wired to the API.
