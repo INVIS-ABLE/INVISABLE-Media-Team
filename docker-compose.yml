@@ -1,0 +1,132 @@
+# ============================================================================
+# INVISABLE® AI Media Agency OS — the full self-hostable stack.
+#
+# Bring up the minimal core:   docker compose up -d core postgres chroma
+# Bring up everything:         docker compose up -d
+#
+# Profiles let you opt in to heavier services (media generation, publishing, ops):
+#   docker compose --profile media --profile ops up -d
+# ============================================================================
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  # --- The INVISABLE OS application -----------------------------------------
+  core:
+    <<: *restart
+    build: ./core
+    env_file: .env
+    environment:
+      INVISABLE_API_PORT: "8080"
+      DATABASE_URL: postgresql+asyncpg://invisable:invisable@postgres:5432/invisable
+      CHROMA_HOST: chroma
+      CHROMA_PORT: "8000"
+      OLLAMA_BASE_URL: http://ollama:11434
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - chroma
+
+  # --- Memory ---------------------------------------------------------------
+  postgres:
+    <<: *restart
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: invisable
+      POSTGRES_PASSWORD: invisable
+      POSTGRES_DB: invisable
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+
+  chroma:
+    <<: *restart
+    image: chromadb/chroma:latest
+    volumes:
+      - ./chroma:/chroma/chroma
+    ports:
+      - "8000:8000"
+
+  # --- Reasoning / local LLMs ----------------------------------------------
+  ollama:
+    <<: *restart
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    volumes:
+      - ./data/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  open-webui:
+    <<: *restart
+    image: ghcr.io/open-webui/open-webui:main
+    profiles: ["llm"]
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - ./data/open-webui:/app/backend/data
+    ports:
+      - "3000:8080"
+    depends_on:
+      - ollama
+
+  # --- Orchestration --------------------------------------------------------
+  n8n:
+    <<: *restart
+    image: n8nio/n8n:latest
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-change-me}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-me-32-characters-minimum-xx}
+      INVISABLE_CORE_URL: http://core:8080
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    ports:
+      - "5678:5678"
+    depends_on:
+      - core
+
+  # --- Media generation (opt-in) -------------------------------------------
+  comfyui:
+    <<: *restart
+    image: yanwk/comfyui-boot:latest
+    profiles: ["media"]
+    volumes:
+      - ./data/comfyui:/root
+    ports:
+      - "8188:8188"
+
+  # --- Publishing (opt-in) --------------------------------------------------
+  postiz:
+    <<: *restart
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    profiles: ["publish"]
+    env_file: .env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+
+  # --- Ops (opt-in) ---------------------------------------------------------
+  uptime-kuma:
+    <<: *restart
+    image: louislam/uptime-kuma:latest
+    profiles: ["ops"]
+    volumes:
+      - ./data/uptime-kuma:/app/data
+    ports:
+      - "3001:3001"
+
+  watchtower:
+    <<: *restart
+    image: containrrr/watchtower:latest
+    profiles: ["ops"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 86400 --cleanup

@@ -1,0 +1,84 @@
+{
+  "name": "INVISABLE OS — Daily Content Cycle",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "0 7 * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every morning 07:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/harvest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"topics\": [\"invisible illness\", \"chronic fatigue\", \"trades mental health\", \"football community resilience\"] }",
+        "options": {}
+      },
+      "id": "harvest",
+      "name": "Harvest public signals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/tournament/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"brief\": \"Raise awareness that invisible illness is real and you are not alone\", \"platform\": \"instagram\", \"count\": 120, \"select\": 5 }",
+        "options": {}
+      },
+      "id": "tournament",
+      "name": "Run Content Tournament",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 720, 300 ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.selected}}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "have_winners",
+      "name": "Winners selected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [ 960, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "Winners are returned already gated by the guardrails and rebalanced for ~80% founder presence. Wire your Postiz / publishing node here to schedule them. Each winner includes hook, total score, founder flag, and rationale.",
+        "height": 160,
+        "width": 320
+      },
+      "id": "publish_note",
+      "name": "→ Publish (Postiz)",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 1200, 220 ]
+    }
+  ],
+  "connections": {
+    "Every morning 07:00": { "main": [ [ { "node": "Harvest public signals", "type": "main", "index": 0 } ] ] },
+    "Harvest public signals": { "main": [ [ { "node": "Run Content Tournament", "type": "main", "index": 0 } ] ] },
+    "Run Content Tournament": { "main": [ [ { "node": "Winners selected?", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}
