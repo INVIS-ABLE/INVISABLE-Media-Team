@@ -6,6 +6,8 @@ the logic. n8n workflows and the Open WebUI call these to run the daily cycle.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -45,6 +47,7 @@ from invisable_os.services import (
     run_and_queue_daily,
     run_swarm_cycle,
     schedule_next,
+    schedule_to_postiz,
     select_next,
     stock_approved,
     swarm_stats,
@@ -244,6 +247,17 @@ def queue_action(item_id: str, action: str) -> dict:
 def publish_run() -> dict:
     """Take due items live (approved now, or scheduled and time-arrived)."""
     return publish_due()
+
+
+class PostizScheduleRequest(BaseModel):
+    item_id: str
+    when: datetime
+
+
+@router.post("/v1/publish/postiz/schedule")
+def postiz_schedule(req: PostizScheduleRequest) -> dict:
+    """Hand an approved item to Postiz to schedule natively at ``when``."""
+    return schedule_to_postiz(req.item_id, req.when)
 
 
 # --- Scheduling: channels, slots, calendar ----------------------------------

@@ -14,7 +14,7 @@ from invisable_os.services.fact_check import (
 from invisable_os.services.media import assemble_post, produce_media
 from invisable_os.services.metrics import sync_metrics
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
-from invisable_os.services.scheduler import publish_due
+from invisable_os.services.scheduler import publish_due, schedule_to_postiz
 from invisable_os.services.scheduling import calendar, schedule_next
 from invisable_os.services.swarm import (
     SWARM_BOTS,
@@ -32,6 +32,7 @@ __all__ = [
     "persist_plan",
     "run_and_queue_daily",
     "publish_due",
+    "schedule_to_postiz",
     "schedule_next",
     "calendar",
     "produce_media",
