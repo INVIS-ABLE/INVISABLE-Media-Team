@@ -41,6 +41,7 @@ from invisable_os.services import (
     assemble_post,
     calendar,
     check_post,
+    finish_post,
     gather_topics,
     produce_media,
     publish_due,
@@ -222,11 +223,13 @@ def get_queue_item(item_id: str) -> dict:
 
 
 @router.post("/v1/queue/{item_id}/{action}")
-def queue_action(item_id: str, action: str) -> dict:
+def queue_action(item_id: str, action: str, finish: bool = False, dam: bool = False) -> dict:
     """Move a queue item: approve | reject | schedule | publish | schedule-next.
 
     ``schedule-next`` assigns the next open posting slot for the item's channel; the
-    others are direct status transitions.
+    others are direct status transitions. On ``approve``, pass ``?finish=true`` to
+    immediately produce + assemble the finished video (``?dam=true`` also archives it),
+    so the post is ready before its slot.
     """
     if action == "schedule-next":
         return schedule_next(item_id)
@@ -243,7 +246,11 @@ def queue_action(item_id: str, action: str) -> dict:
             "allowed": [*mapping, "schedule-next"],
         }
     item = get_repository().transition(item_id, target)
-    return item or {"error": "not found", "id": item_id}
+    if item is None:
+        return {"error": "not found", "id": item_id}
+    if action == "approve" and finish:
+        item["finished"] = finish_post(item_id, dam=dam)
+    return item
 
 
 @router.post("/v1/publish/run")
@@ -313,6 +320,12 @@ def media_produce(item_id: str) -> dict:
 def media_assemble(item_id: str) -> dict:
     """Stitch a post's rendered visual + voiceover + captions into a final cutdown."""
     return assemble_post(item_id)
+
+
+@router.post("/v1/media/finish/{item_id}")
+def media_finish(item_id: str, dam: bool = False) -> dict:
+    """Produce + assemble (and optionally DAM-sync) a post into a finished video."""
+    return finish_post(item_id, dam=dam)
 
 
 @router.get("/v1/media")

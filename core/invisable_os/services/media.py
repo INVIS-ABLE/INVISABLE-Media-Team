@@ -92,3 +92,36 @@ def assemble_post(
         "asset_id": asset_id,
         "inputs": {"visual": visual, "audio": audio, "captions": captions},
     }
+
+
+def finish_post(
+    item_id: str,
+    *,
+    dam: bool = False,
+    repository: Repository | None = None,
+) -> dict:
+    """Take a post all the way to a finished video: produce → assemble → (DAM).
+
+    One seam so approving a post can produce its flywheel assets, stitch the final
+    cutdown, and (optionally) archive to ResourceSpace — leaving a ready-to-publish
+    video before its slot. Each step degrades safely (dry-run) when its backend
+    isn't configured. Returns ``{"error": …}`` if the item doesn't exist.
+    """
+    repo = repository or get_repository()
+    if repo.get_queue_item(item_id) is None:
+        return {"error": "not found", "id": item_id}
+
+    produced = produce_media(item_id, repository=repo)
+    assembled = assemble_post(item_id, repository=repo)
+    report = {
+        "item_id": item_id,
+        "produced": produced.get("produced", 0),
+        "final_video": assembled.get("final_video"),
+        "assemble_backend": assembled.get("backend"),
+    }
+    if dam:
+        from invisable_os.services.dam import sync_post_to_dam
+
+        synced = sync_post_to_dam(item_id, repository=repo)
+        report["dam"] = {"backend": synced.get("backend"), "count": synced.get("count", 0)}
+    return report

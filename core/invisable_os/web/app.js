@@ -105,22 +105,34 @@ function queueCard(it, root) {
     <div class="meta">${badges}</div>
     <div class="actions">
       <button class="btn good" data-a="approve">Approve</button>
+      <button class="btn good" data-a="approve-finish" title="Approve, then produce + assemble the finished video">Approve &amp; finish</button>
       <button class="btn ghost" data-a="schedule-next">Schedule</button>
       <button class="btn ghost" data-a="produce">Produce</button>
+      <button class="btn ghost" data-a="finish" title="Produce + assemble a finished video now">Finish</button>
       <button class="btn ghost" data-a="reject">Reject</button>
     </div></div>`);
   card.querySelectorAll("button").forEach((b) => {
     b.onclick = async () => {
+      b.disabled = true;
       try {
-        if (b.dataset.a === "produce") {
+        const act = b.dataset.a;
+        if (act === "produce") {
           const r = await api(`/v1/media/produce/${it.id}`, { method: "POST" });
           toast(`Produced ${r.produced} assets`);
+        } else if (act === "finish") {
+          const r = await api(`/v1/media/finish/${it.id}`, { method: "POST" });
+          toast(r.error ? r.error : `Finished: ${r.produced} assets → ${r.assemble_backend}`);
+        } else if (act === "approve-finish") {
+          const r = await api(`/v1/queue/${it.id}/approve?finish=true`, { method: "POST" });
+          toast(r.error ? r.error : `Approved & finished (${r.finished?.assemble_backend || "ok"})`);
+          if (!r.error) views.queue(root);
         } else {
-          const r = await api(`/v1/queue/${it.id}/${b.dataset.a}`, { method: "POST" });
-          toast(r.error ? r.error : `${b.dataset.a} → ${r.status || "ok"}`);
+          const r = await api(`/v1/queue/${it.id}/${act}`, { method: "POST" });
+          toast(r.error ? r.error : `${act} → ${r.status || "ok"}`);
           if (!r.error) views.queue(root);
         }
       } catch (e) { toast("Failed: " + e.message); }
+      b.disabled = false;
     };
   });
   return card;

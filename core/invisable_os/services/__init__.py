@@ -11,7 +11,7 @@ from invisable_os.services.fact_check import (
     credibility,
     is_fact_led,
 )
-from invisable_os.services.media import assemble_post, produce_media
+from invisable_os.services.media import assemble_post, finish_post, produce_media
 from invisable_os.services.metrics import sync_metrics
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due, schedule_to_postiz
@@ -38,6 +38,7 @@ __all__ = [
     "calendar",
     "produce_media",
     "assemble_post",
+    "finish_post",
     "check_post",
     "is_fact_led",
     "credibility",

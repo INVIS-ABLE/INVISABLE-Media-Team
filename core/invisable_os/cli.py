@@ -242,6 +242,22 @@ def _assemble(args) -> int:
     return 0
 
 
+def _finish(args) -> int:
+    from invisable_os.services import finish_post
+    from invisable_os.store import init_db
+
+    init_db()
+    res = finish_post(args.id, dam=args.dam)
+    if "error" in res:
+        print(res["error"], args.id)
+        return 1
+    print(f"✓ finished {args.id[:8]}: produced {res['produced']} asset(s) → "
+          f"[{res['assemble_backend']}] {res['final_video']}")
+    if "dam" in res:
+        print(f"    DAM: [{res['dam']['backend']}] {res['dam']['count']} asset(s)")
+    return 0
+
+
 def _dam_sync(args) -> int:
     from invisable_os.services import sync_post_to_dam
     from invisable_os.store import init_db
@@ -331,6 +347,11 @@ def main(argv: list[str] | None = None) -> int:
     p_assemble = sub.add_parser("assemble", help="stitch a post's assets into a final video")
     p_assemble.add_argument("id")
     p_assemble.set_defaults(func=_assemble)
+
+    p_finish = sub.add_parser("finish", help="produce + assemble a post into a finished video")
+    p_finish.add_argument("id")
+    p_finish.add_argument("--dam", action="store_true", help="also archive to ResourceSpace")
+    p_finish.set_defaults(func=_finish)
 
     p_dam = sub.add_parser("dam-sync", help="push a post's assets into ResourceSpace")
     p_dam.add_argument("id")
