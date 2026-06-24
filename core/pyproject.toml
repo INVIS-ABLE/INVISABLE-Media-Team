@@ -16,6 +16,8 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "httpx>=0.27",
+    # Multipart parsing for /api/assets/upload (Studio worker uploads finished media).
+    "python-multipart>=0.0.9",
     # SQLAlchemy + SQLite (stdlib driver) make the platform operational out of the
     # box with zero external services; swap DATABASE_URL for Postgres in production.
     "sqlalchemy>=2.0",

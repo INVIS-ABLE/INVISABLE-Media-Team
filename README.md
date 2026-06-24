@@ -197,9 +197,30 @@ schedulers we studied (and their licences).
 ├── db/schema.sql             # PostgreSQL schema
 ├── n8n/workflows/            # Automation workflows (daily content cycle, harvesting)
 ├── docs/                     # Architecture, values, engines, deployment
+├── desktop/                  # Tauri desktop apps (Command Centre + Studio Worker)
 ├── docker-compose.yml        # Full self-hostable stack
 └── .env.example
 ```
+
+---
+
+## Desktop apps
+
+Native desktop control surfaces live in [`desktop/`](desktop/) — one Tauri app with
+two roles selected at first launch:
+
+- **🛰️ Command Centre** runs on the server: opens the protected PWA and gives Stephen
+  the full agency dashboard with manual override (approve/reject/schedule/post-now,
+  pause automation, request content) — so the system is never a black box.
+- **🎬 Studio Worker** runs on the 5090: claims render jobs from the server, runs
+  FFmpeg/Whisper/ComfyUI locally, and uploads finished media back.
+
+They talk to the server over the stable `/api/*` surface
+([`core/invisable_os/api/desktop_routes.py`](core/invisable_os/api/desktop_routes.py)),
+prefer the LAN at home and Cloudflare Access remotely, and keep all secrets
+server-side. See [`desktop/README.md`](desktop/README.md) and
+[`desktop/cloudflare/`](desktop/cloudflare/) for build, role, connection, and lockdown
+details.
 
 ---
 

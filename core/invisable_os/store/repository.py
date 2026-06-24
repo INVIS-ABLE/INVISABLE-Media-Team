@@ -27,6 +27,7 @@ from invisable_os.store.models import (
     PopCultureRow,
     QueueItemRow,
     RemixJobRow,
+    RenderJobRow,
     RightsAssetRow,
     ScannedItemRow,
     ScannerSourceRow,
@@ -34,6 +35,7 @@ from invisable_os.store.models import (
     SourceClaimRow,
     SourceRow,
     SubtitleRow,
+    SystemFlagRow,
     TagMemberRow,
     WarChestItemRow,
 )
@@ -793,6 +795,151 @@ class Repository:
             row.last_used_at = _now()
             row.reuse_count = (row.reuse_count or 0) + 1
             return row.as_dict()
+
+
+    # --- Render jobs (the 5090 Studio worker queue) ------------------------
+
+    def create_render_job(
+        self,
+        kind: str,
+        *,
+        title: str = "",
+        queue_item_id: str = "",
+        priority: int = 5,
+        params: dict | None = None,
+    ) -> dict:
+        """Enqueue a production job for a Studio worker to claim."""
+        with session_scope() as s:
+            row = RenderJobRow(
+                id=str(uuid.uuid4()),
+                kind=kind,
+                status="queued",
+                title=title,
+                queue_item_id=queue_item_id,
+                priority=priority,
+                params=params or {},
+            )
+            s.add(row)
+            s.flush()
+            return row.as_dict()
+
+    def list_render_jobs(
+        self, status: str | None = None, kind: str | None = None, limit: int = 100
+    ) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(RenderJobRow)
+            if status:
+                stmt = stmt.where(RenderJobRow.status == status)
+            if kind:
+                stmt = stmt.where(RenderJobRow.kind == kind)
+            # Highest priority first, then oldest first — a stable claim order.
+            stmt = stmt.order_by(
+                RenderJobRow.priority.asc(), RenderJobRow.created_at.asc()
+            ).limit(limit)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def get_render_job(self, job_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(RenderJobRow, job_id)
+            return row.as_dict() if row else None
+
+    def render_job_counts(self) -> dict[str, int]:
+        with session_scope() as s:
+            counts: dict[str, int] = {}
+            for row in s.scalars(select(RenderJobRow)):
+                counts[row.status] = counts.get(row.status, 0) + 1
+            return counts
+
+    def claim_render_job(self, job_id: str, worker_id: str) -> dict | None:
+        """Atomically claim a queued job for a worker. Returns None if not claimable."""
+        with session_scope() as s:
+            row = s.get(RenderJobRow, job_id)
+            if row is None or row.status != "queued":
+                return None
+            row.status = "claimed"
+            row.worker_id = worker_id
+            row.claimed_at = _now()
+            return row.as_dict()
+
+    def claim_next_render_job(
+        self, worker_id: str, kinds: list[str] | None = None
+    ) -> dict | None:
+        """Claim the next queued job (optionally filtered to kinds this worker runs)."""
+        with session_scope() as s:
+            stmt = select(RenderJobRow).where(RenderJobRow.status == "queued")
+            if kinds:
+                stmt = stmt.where(RenderJobRow.kind.in_(kinds))
+            stmt = stmt.order_by(
+                RenderJobRow.priority.asc(), RenderJobRow.created_at.asc()
+            ).limit(1)
+            row = s.scalars(stmt).first()
+            if row is None:
+                return None
+            row.status = "claimed"
+            row.worker_id = worker_id
+            row.claimed_at = _now()
+            return row.as_dict()
+
+    def update_render_job(self, job_id: str, **fields) -> dict | None:
+        """Update mutable job fields (progress, status, a log line, result, error)."""
+        with session_scope() as s:
+            row = s.get(RenderJobRow, job_id)
+            if row is None:
+                return None
+            log_line = fields.pop("log", None)
+            if log_line:
+                row.logs = [*(row.logs or []), str(log_line)]
+            for k, v in fields.items():
+                if hasattr(row, k):
+                    setattr(row, k, v)
+            return row.as_dict()
+
+    def complete_render_job(
+        self, job_id: str, *, result: dict | None = None, error: str = ""
+    ) -> dict | None:
+        with session_scope() as s:
+            row = s.get(RenderJobRow, job_id)
+            if row is None:
+                return None
+            row.status = "failed" if error else "completed"
+            row.progress = row.progress if error else 1.0
+            row.result = result or row.result or {}
+            row.error = error
+            row.completed_at = _now()
+            return row.as_dict()
+
+    def cancel_render_job(self, job_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(RenderJobRow, job_id)
+            if row is None:
+                return None
+            if row.status in ("completed", "failed"):
+                return row.as_dict()
+            row.status = "cancelled"
+            row.completed_at = _now()
+            return row.as_dict()
+
+    # --- System flags (automation pause switches) --------------------------
+
+    def get_flag(self, key: str, default: dict | None = None) -> dict:
+        with session_scope() as s:
+            row = s.get(SystemFlagRow, key)
+            return (row.value if row and row.value is not None else default) or {}
+
+    def set_flag(self, key: str, value: dict) -> dict:
+        with session_scope() as s:
+            row = s.get(SystemFlagRow, key)
+            if row is None:
+                row = SystemFlagRow(key=key, value=value)
+                s.add(row)
+            else:
+                row.value = value
+            s.flush()
+            return row.as_dict()
+
+    def all_flags(self) -> dict[str, dict]:
+        with session_scope() as s:
+            return {r.key: (r.value or {}) for r in s.scalars(select(SystemFlagRow))}
 
 
 def _as_utc(dt: datetime) -> datetime:

@@ -617,6 +617,81 @@ class WarChestItemRow(Base):
         }
 
 
+class RenderJobRow(Base):
+    """A production job for the 5090 Studio worker to claim, run, and complete.
+
+    The server is the source of truth: jobs are created here (by the Command Centre
+    or the daily pipeline), claimed by a worker, processed locally on the 5090, and
+    marked complete/failed with the path to the finished asset on the server.
+    """
+
+    __tablename__ = "render_job"
+
+    id = Column(String, primary_key=True)
+    kind = Column(String, nullable=False, default="ffmpeg_render", index=True)
+    # ffmpeg_render | whisper_caption | comfyui_image | comfyui_video |
+    # audio_cleanup | caption_render | format_convert | upload
+    status = Column(String, nullable=False, default="queued", index=True)
+    # queued | claimed | processing | completed | failed | cancelled
+
+    queue_item_id = Column(String, default="", index=True)
+    title = Column(String, default="")
+    priority = Column(Integer, default=5, index=True)  # 1 = highest
+    params = Column(JSON, default=dict)  # job-specific inputs (paths, prompts, specs)
+
+    progress = Column(Float, default=0.0)  # 0.0 .. 1.0
+    worker_id = Column(String, default="")  # which 5090 worker claimed it
+    result = Column(JSON, default=dict)  # output asset refs / metadata
+    error = Column(String, default="")
+    logs = Column(JSON, default=list)
+
+    created_at = Column(DateTime(timezone=True), default=_now)
+    claimed_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "kind": self.kind,
+            "status": self.status,
+            "queue_item_id": self.queue_item_id,
+            "title": self.title,
+            "priority": self.priority,
+            "params": self.params or {},
+            "progress": self.progress,
+            "worker_id": self.worker_id,
+            "result": self.result or {},
+            "error": self.error,
+            "logs": self.logs or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "claimed_at": self.claimed_at.isoformat() if self.claimed_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class SystemFlagRow(Base):
+    """A tiny key→JSON store for global runtime state (automation pause switches).
+
+    This backs the manual-override controls: pausing all automation, pausing posting,
+    or pausing a single account is a flag the engines and the desktop apps both read.
+    """
+
+    __tablename__ = "system_flag"
+
+    key = Column(String, primary_key=True)
+    value = Column(JSON, default=dict)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "key": self.key,
+            "value": self.value,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 # ============================================================================
 # CREDIBLE SOURCES — the fact-attribution layer.
 #
