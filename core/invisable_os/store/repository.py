@@ -387,6 +387,7 @@ class Repository:
                     "metric": r.metric,
                     "value": r.value,
                     "themes": r.themes or [],
+                    "observed_at": r.observed_at.isoformat() if r.observed_at else None,
                 }
                 for r in rows[:limit]
             ]

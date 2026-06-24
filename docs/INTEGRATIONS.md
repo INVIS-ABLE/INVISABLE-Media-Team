@@ -72,6 +72,25 @@ answering "which post drove the podcast invitations?". Empty until recognition-b
 signals (media mentions, podcast/speaking invitations, partner/sponsor enquiries,
 profile visits) are synced against published posts.
 
+### Theme performance alerts — proactive insights
+
+The Watchtower learns theme→metric correlations quietly; `detect_theme_alerts()`
+turns that history into nudges. It compares each theme/metric's most recent 7 days
+against a rolling baseline of the prior weeks and flags shifts ≥20%, with a
+plain-English recommendation ("'humour' is fading on saves — rebalance toward themes
+with momentum").
+
+```
+GET /v1/brain/alerts?weeks=4&min_change=0.20
+   → { count, momentum, declining,
+       alerts: [{ theme, metric, direction, category, change_pct,
+                  current_avg, baseline_avg, samples, recommendation }] }
+```
+
+Surfaced in the dashboard's **Insights** view. Detection is pure and deterministic
+(signals + a `now` reference in, ranked alerts out); it needs a few weeks of synced
+metrics before the baseline is meaningful.
+
 ## Status & safety
 
 | Integration | Configured by | Offline behaviour |

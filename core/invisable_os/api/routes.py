@@ -70,6 +70,7 @@ from invisable_os.services import (
     swarm_stats,
     sync_metrics,
     sync_post_to_dam,
+    theme_alerts,
 )
 from invisable_os.services.swarm import _SCAN_TOPICS as _SWARM_SEED_TOPICS
 from invisable_os.store import get_repository
@@ -711,6 +712,12 @@ def brain_stats() -> dict:
         "trend_signals": brain.count("trend_signal"),
         "cultural_notes": brain.count("cultural_note"),
     }
+
+
+@router.get("/v1/brain/alerts")
+def brain_alerts(weeks: int = 4, min_change: float = 0.20) -> dict:
+    """Theme performance alerts: where a theme's metrics shifted vs its recent baseline."""
+    return theme_alerts(baseline_weeks=weeks, min_change=min_change)
 
 
 # --- Credible sources & the fact-check rule ---------------------------------

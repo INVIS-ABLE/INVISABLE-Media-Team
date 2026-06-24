@@ -16,6 +16,7 @@ from invisable_os.engines.engagement import CommunityEngagement
 from invisable_os.engines.flywheel import ContentFlywheel
 from invisable_os.engines.founder import FounderEngine
 from invisable_os.engines.harvester import IntelligenceHarvester
+from invisable_os.engines.insights import detect_theme_alerts
 from invisable_os.engines.mission import MissionEngine
 from invisable_os.engines.quality import QualityEngine
 from invisable_os.engines.remix import (
@@ -42,6 +43,7 @@ __all__ = [
     "MissionEngine",
     "QualityEngine",
     "ContentFlywheel",
+    "detect_theme_alerts",
     "TagNetwork",
     "RemixTrendEngine",
     "TrendScanner",
