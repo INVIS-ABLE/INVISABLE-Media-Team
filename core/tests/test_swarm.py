@@ -10,7 +10,14 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from invisable_os.main import app
-from invisable_os.services.swarm import SWARM_BOTS, AgentSwarm, run_swarm_cycle, swarm_stats
+from invisable_os.services.swarm import (
+    _GENERATE_ANGLES,
+    _GENERATE_PERSONAS,
+    SWARM_BOTS,
+    AgentSwarm,
+    run_swarm_cycle,
+    swarm_stats,
+)
 from invisable_os.store import get_repository
 
 # --- the bot roster ---------------------------------------------------------
@@ -105,3 +112,30 @@ def test_swarm_api_round_trip():
     assert stats["total_produced"] > 0
     outputs = client.get(f"/v1/swarm/outputs?cycle_id={run['cycle_id']}").json()["outputs"]
     assert len(outputs) == 20
+
+
+# --- generate-bot personas --------------------------------------------------
+
+
+def test_every_generate_bot_has_an_angle_and_a_persona():
+    generate_bots = {b.name for b in SWARM_BOTS if b.stage == "generate"}
+    assert generate_bots == set(_GENERATE_ANGLES) == set(_GENERATE_PERSONAS)
+    assert all(_GENERATE_PERSONAS[b].strip() for b in generate_bots)
+
+
+def test_personas_are_distinct():
+    texts = list(_GENERATE_PERSONAS.values())
+    assert len(texts) == len(set(texts))
+
+
+def test_bots_endpoint_exposes_personas_for_generate_bots():
+    bots = AgentSwarm().bots()
+    by_name = {b["name"]: b for b in bots}
+    assert by_name["Humour Bot"]["persona"]  # generate bots carry a persona
+    assert by_name["Brand Guardian Bot"]["persona"] == ""  # gate bots do not
+
+
+def test_cycle_still_runs_with_personas():
+    # Personas augment the LLM prompt; offline the templates still produce a field.
+    result = run_swarm_cycle(drafts_per_topic=1, live_sources=False)
+    assert result["funnel"]["raw_drafts"] > 0

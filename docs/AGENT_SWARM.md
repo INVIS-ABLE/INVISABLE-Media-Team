@@ -33,7 +33,12 @@ platform owns, and stock the survivors into the [Content War Chest](WAR_CHEST.md
    - `GET /v1/swarm/topics` previews what each bot would feed; `POST /v1/swarm/sources/seed`
      seeds a starter set of credible UK-first feeds (GOV.UK, NHS, …).
 2. **Generate** — each generate bot drafts against every scanned topic via the
-   content generator (degrades to safe, original templates offline).
+   content generator. Each bot carries a **specialist persona** that sharpens the
+   LLM's voice for its craft (Humour Bot → warm British dry humour; Founder Voice →
+   raw, mission-led first person; Partner/Sponsor → sponsor-safe, no false claims;
+   Hook Bot → scroll-stopping openers; …). The persona *augments* — never relaxes —
+   the generator's safety system prompt, and is ignored by the deterministic
+   template fallback, so generation stays safe and testable offline.
 3. **Gate** — the only **hard rejection** is the brand guardrails (the Prime
    Directive). Below-bar quality and fact-led-without-source are **flagged for
    review**, not dropped:

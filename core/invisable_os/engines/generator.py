@@ -42,12 +42,18 @@ class Generator:
         count: int = 24,
         content_format: ContentFormat = ContentFormat.SHORT_VIDEO,
         angle: str | None = None,
+        persona: str = "",
     ) -> list[ContentCandidate]:
         """Return ``count`` candidate pieces for ``brief``.
 
         If ``angle`` is given, every candidate is generated in that angle (used by the
         Daily Director so each slot produces content matching its editorial intent);
         otherwise the generator rotates through all angles.
+
+        ``persona`` is an optional specialist brief that sharpens the LLM's voice for a
+        particular role (e.g. a swarm generate-bot: humour, founder voice, sponsor-safe).
+        It augments — never replaces — the safety system prompt, and is ignored by the
+        deterministic template fallback, so existing callers are unaffected.
         """
         candidates: list[ContentCandidate] = []
         cultural_context = self.cultural.context_for(brief)
@@ -68,6 +74,7 @@ class Generator:
                 cultural_context=cultural_context,
                 founder_centred=founder_centred,
                 variant=i,
+                persona=persona,
             )
             candidates.append(candidate)
         return candidates
@@ -83,6 +90,7 @@ class Generator:
         cultural_context: str,
         founder_centred: bool,
         variant: int,
+        persona: str = "",
     ) -> ContentCandidate:
         system = (
             "You are INVISABLE OS's content generator for the INVISABLE® movement, "
@@ -91,6 +99,9 @@ class Generator:
             "Optimise for trust, awareness, authenticity, education, warmth and "
             "British humour. Avoid controversy, outrage, spam and engagement-bait."
         )
+        if persona:
+            # The persona sharpens the voice but can never relax the safety rules above.
+            system += f"\n\nSpecialist brief for this piece: {persona}"
         prompt = (
             f"Brief: {brief}\n"
             f"Platform: {platform.value}; Format: {content_format.value}\n"

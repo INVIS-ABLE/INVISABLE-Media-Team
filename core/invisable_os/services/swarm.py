@@ -107,6 +107,50 @@ _GENERATE_ANGLES: dict[str, tuple[str, str]] = {
     "Remix/Parody Bot": ("myth_vs_reality", "trends"),
 }
 
+# A specialist persona per generate bot — sharpens the LLM's voice for that bot's
+# craft at volume. These augment (never relax) the generator's safety system prompt;
+# offline they're ignored and the deterministic templates still produce a field.
+_GENERATE_PERSONAS: dict[str, str] = {
+    "Hook Bot": (
+        "You write scroll-stopping opening lines. Lead with a pattern-break, a relatable "
+        "confession, or a 'POV:' setup. Keep the hook under 12 words; the body can be short."
+    ),
+    "Script Bot": (
+        "You write tight short-form video scripts: a hook, three beats, and a soft CTA. "
+        "Teach one concrete, honest thing — no jargon, no medical overclaiming."
+    ),
+    "Caption Bot": (
+        "You write platform captions and on-screen text: punchy, plain, one idea, one CTA. "
+        "No hashtag spam in the body — the Hashtag bot handles tags separately."
+    ),
+    "Hashtag & Tag Bot": (
+        "You write community-first posts that earn a save or a share. Speak directly to one "
+        "person who feels unseen; warmth over cleverness."
+    ),
+    "Humour Bot": (
+        "You write warm British, dry, self-deprecating trades humour. Laugh WITH the trades "
+        "and chronic-illness community, never at it — no mockery, no punching down, no slurs."
+    ),
+    "Founder Voice Bot": (
+        "You write in the founder's raw, honest, mission-led voice: first person, plain, no "
+        "corporate gloss. Speak to why INVISABLE exists — never invent a specific experience."
+    ),
+    "Partner/Sponsor Bot": (
+        "You write sponsor-safe content: no false claims, no medical overclaims, no guarantees. "
+        "Mention the partner naturally and keep the INVISABLE mission first."
+    ),
+    "Remix/Parody Bot": (
+        "You write original parody and trend-adapted angles inspired by a format — never a copy. "
+        "Transform the idea into an INVISABLE take; no copyrighted lines, no reposting."
+    ),
+}
+
+# Every generate bot must have both an angle and a specialist persona.
+_GENERATE_BOT_NAMES = {b.name for b in SWARM_BOTS if b.stage == "generate"}
+assert _GENERATE_BOT_NAMES == set(_GENERATE_ANGLES) == set(_GENERATE_PERSONAS), (
+    "every generate bot needs an angle and a persona"
+)
+
 
 @dataclass
 class CycleResult:
@@ -166,6 +210,7 @@ class AgentSwarm:
                     "name": bot.name,
                     "stage": bot.stage,
                     "role": bot.role,
+                    "persona": _GENERATE_PERSONAS.get(bot.name, ""),
                     "produced": produced,
                     "passed": passed,
                     "rejected": t.get("rejected", 0),
@@ -203,10 +248,11 @@ class AgentSwarm:
         drafts: list[ContentCandidate] = []
         for bot in (b for b in SWARM_BOTS if b.stage == "generate"):
             angle, pillar = _GENERATE_ANGLES[bot.name]
+            persona = _GENERATE_PERSONAS.get(bot.name, "")
             made = 0
             for topic, _src in topics:
                 cands = self.generator.generate(
-                    topic, platform, count=drafts_per_topic, angle=angle
+                    topic, platform, count=drafts_per_topic, angle=angle, persona=persona
                 )
                 for c in cands:
                     c.themes = [*(c.themes or []), pillar]
