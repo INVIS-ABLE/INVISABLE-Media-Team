@@ -151,6 +151,14 @@ export const replaceMedia = (id: string, mediaPath: string) =>
     ),
   );
 
+export const regenerateInPlace = (id: string, brief?: string) =>
+  run("Regenerate Post", async () =>
+    ok(
+      "Regenerate",
+      await api("POST", `/api/posts/${id}/regenerate`, brief ? { brief } : {}),
+    ),
+  );
+
 /** Upload a local file to the server and return its server-side path (or null). */
 export async function uploadFile(
   filePath: string,

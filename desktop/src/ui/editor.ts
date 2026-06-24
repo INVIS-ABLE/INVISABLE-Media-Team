@@ -79,6 +79,18 @@ export function openPostEditor(postId: string, onClose: () => void): void {
       refresh();
     }
 
+    const regenBrief = el("input", {
+      class: "input",
+      type: "text",
+      value: str(c["brief"]),
+      placeholder: "Optional new brief — blank reuses the post's brief",
+    }) as HTMLInputElement;
+
+    async function regenerate() {
+      await act.regenerateInPlace(postId, regenBrief.value.trim() || undefined);
+      refresh();
+    }
+
     async function browseAndReplace() {
       const path = await pickFile("Choose the replacement media");
       if (!path) return;
@@ -127,6 +139,18 @@ export function openPostEditor(postId: string, onClose: () => void): void {
         field("Caption", caption),
         field("Call to action", cta),
         field("Hashtags", hashtags, "Space-separated."),
+        el(
+          "div",
+          { class: "field" },
+          el("span", { class: "field__label" }, "Regenerate content"),
+          regenBrief,
+          el("span", { class: "field__hint" }, "Runs the Content Tournament and swaps in a fresh, gate-passed winner — same post."),
+          el(
+            "div",
+            { class: "btn-row" },
+            el("button", { class: "btn btn--warn", onclick: () => void regenerate() }, "Regenerate Post"),
+          ),
+        ),
         el(
           "div",
           { class: "field" },

@@ -420,6 +420,58 @@ def api_post_edit(post_id: str, req: PostEditRequest) -> dict:
     return {"ok": True, "post": item}
 
 
+class RegenerateRequest(BaseModel):
+    brief: str | None = None
+
+
+@api_router.post("/posts/{post_id}/regenerate", dependencies=[Depends(require_token)])
+def api_post_regenerate(post_id: str, req: RegenerateRequest) -> dict:
+    """Regenerate this post's content in place — run the tournament and swap the
+    winning candidate's text into the same queue item (id + status preserved).
+
+    The tournament runs the hard guardrails first, so any winner is already
+    gate-passed. Returns the updated post and the winner's score.
+    """
+    from invisable_os.engines.tournament import ContentTournamentEngine
+    from invisable_os.models.content import ContentFormat, Platform
+
+    repo = get_repository()
+    item = repo.get_queue_item(post_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"post '{post_id}' not found")
+
+    cand = item.get("candidate") or {}
+    brief = (req.brief or cand.get("brief") or "Regenerate this post").strip()
+    try:
+        platform = Platform(item.get("platform") or cand.get("platform") or "instagram")
+    except ValueError:
+        platform = Platform.INSTAGRAM
+    try:
+        content_format = ContentFormat(cand.get("content_format") or "short_video")
+    except ValueError:
+        content_format = ContentFormat.SHORT_VIDEO
+
+    result = ContentTournamentEngine().run(
+        brief, platform, count=24, select=1, content_format=content_format
+    )
+    if not result.winners:
+        return {"ok": False, "error": "all candidates were blocked by the guardrails"}
+
+    winner = result.winners[0]
+    w = winner.candidate
+    patch = {
+        "brief": brief,
+        "hook": w.hook,
+        "body": w.body,
+        "call_to_action": w.call_to_action,
+        "themes": list(w.themes),
+        "founder_centred": w.founder_centred,
+        "generator": w.generator,
+    }
+    updated = repo.update_queue_candidate(post_id, candidate_patch=patch)
+    return {"ok": True, "post": updated, "score": winner.total}
+
+
 class ReplaceMediaRequest(BaseModel):
     media_path: str
     kind: str = "primary"
