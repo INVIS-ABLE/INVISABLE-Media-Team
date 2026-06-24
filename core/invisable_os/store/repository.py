@@ -18,6 +18,7 @@ from invisable_os.store.db import session_scope
 from invisable_os.store.models import (
     ChannelRow,
     ExtractedHookRow,
+    FounderRecognitionRow,
     MediaAssetRow,
     MemeFormatRow,
     OpportunityRow,
@@ -203,6 +204,43 @@ class Repository:
                     themes=themes or [],
                 )
             )
+
+    # --- Founder Recognition Index ledger ----------------------------------
+
+    def record_founder_recognition(self, index_value: float, breakdown: dict) -> str:
+        """Append a Founder Recognition Index reading. Returns the row id."""
+        row_id = uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                FounderRecognitionRow(
+                    id=row_id, index_value=index_value, breakdown=dict(breakdown or {})
+                )
+            )
+        return row_id
+
+    def list_founder_recognition(self, limit: int = 30) -> list[dict]:
+        """Recognition history, oldest → newest (so a chart reads left to right)."""
+        with session_scope() as s:
+            rows = list(s.scalars(select(FounderRecognitionRow)))
+            rows.sort(key=lambda r: r.created_at or _now())
+            return [r.as_dict() for r in rows[-limit:]]
+
+    # --- Cross-run history (for founder presence balancing) ----------------
+
+    def recent_candidates(self, limit: int = 60) -> list[dict]:
+        """Recent queued candidates (any non-rejected status), newest first.
+
+        Used to seed the Founder Engine so founder presence tracks the ~80% target
+        across days, not just within a single run. Returns the stored candidate
+        dumps; callers read ``founder_centred`` / ``platform``.
+        """
+        with session_scope() as s:
+            rows = [
+                r for r in s.scalars(select(QueueItemRow))
+                if r.status != QueueStatus.REJECTED.value
+            ]
+            rows.sort(key=lambda r: r.created_at or _now(), reverse=True)
+            return [r.candidate for r in rows[:limit] if r.candidate]
 
     # ======================================================================
     # Remix, Parody & Trend Intelligence department

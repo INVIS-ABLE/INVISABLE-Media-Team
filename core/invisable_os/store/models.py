@@ -149,6 +149,29 @@ class PerfSignalRow(Base):
     observed_at = Column(DateTime(timezone=True), default=_now)
 
 
+class FounderRecognitionRow(Base):
+    """A Founder Recognition Index ledger entry, written each Watchtower ingest.
+
+    The index is a *consequence of genuine impact* (media mentions, podcast and
+    speaking invitations, partner/sponsor enquiries, profile visits). Persisting it
+    over time lets the platform — and the PWA — show recognition trending up.
+    """
+
+    __tablename__ = "founder_recognition_row"
+
+    id = Column(String, primary_key=True)
+    index_value = Column(Float, default=0.0)
+    breakdown = Column(JSON, default=dict)  # metric → total, as ingested
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "index_value": self.index_value,
+            "breakdown": self.breakdown or {},
+            "at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 # ============================================================================
 # Scheduling — connected channels + a weekly posting-slot schedule (the
 # Buffer/Postiz/Mixpost "queue" pattern: define slots once, fill the next free
