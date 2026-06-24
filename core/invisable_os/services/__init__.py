@@ -8,6 +8,11 @@ from invisable_os.services.media import assemble_post, produce_media
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due
 from invisable_os.services.scheduling import calendar, schedule_next
+from invisable_os.services.war_chest import (
+    reserve_health,
+    select_next,
+    stock_approved,
+)
 
 __all__ = [
     "persist_plan",
@@ -17,4 +22,7 @@ __all__ = [
     "calendar",
     "produce_media",
     "assemble_post",
+    "stock_approved",
+    "reserve_health",
+    "select_next",
 ]

@@ -359,6 +359,67 @@ views.rights = async (root) => {
     </div></div>`).join("");
 };
 
+// --- Content War Chest -----------------------------------------------------
+const TIER_CLASS = { below_minimum: "bad", minimum: "warn", healthy: "good", elite: "good" };
+
+views.warchest = async (root) => {
+  root.innerHTML = `<div class="row"><h2>War Chest</h2><div class="spacer"></div>
+    <button class="btn ghost" id="stock">Stock approved</button>
+    <button class="btn" id="select">Draw next post</button></div>
+    <div class="muted">The reserve of approved, ready-to-post assets. The platform always
+      generates more than it publishes — a strong reserve means post more, a thin one
+      means protect it and post fewer (quality over quantity).</div>
+    <div class="stats" id="wcstats"></div>
+    <div id="wcdraw"></div>
+    <div class="row" style="margin-top:8px"><h3 style="margin:0">By category</h3></div>
+    <div class="row" id="wccats"></div>
+    <div class="cards" id="wclist"></div>`;
+  $("#stock", root).onclick = async () => {
+    try { const r = await api("/v1/warchest/stock", { method: "POST" }); toast(`Stocked ${r.stocked} approved → reserve`); views.warchest(root); }
+    catch (e) { toast("Failed: " + e.message); }
+  };
+  $("#select", root).onclick = async () => {
+    try {
+      const r = await api("/v1/warchest/select", { method: "POST", body: JSON.stringify({}) });
+      const out = $("#wcdraw", root);
+      if (r.error) { out.innerHTML = `<div class="muted">${esc(r.error)}</div>`; return; }
+      const it = r.item;
+      out.innerHTML = `<div class="card"><div class="meta">
+          <span class="badge good">drawn → marked used</span>
+          <span class="badge pillar">${esc(it.category)}</span>
+          ${r.rotated_from_category ? `<span class="badge">rotated from ${esc(r.rotated_from_category)}</span>` : ""}
+        </div><div class="hook">${esc(it.title)}</div>
+        <div class="meta"><span class="badge">${esc(it.platform || "—")}</span>
+          <span class="badge">Q ${(+it.quality_score).toFixed(1)}</span>
+          <span class="badge">M ${(+it.mission_score).toFixed(2)}</span>
+          <span class="badge">fresh ${it.freshness_score}</span></div></div>`;
+      views.warchest(root);
+    } catch (e) { toast("Failed: " + e.message); }
+  };
+  const h = await api("/v1/warchest");
+  $("#wcstats", root).innerHTML = [
+    ["Ready", h.ready], ["Tier", h.tier.replace("_", " ")],
+    ["Posts/day", h.recommended_posts_per_day], ["Every", h.recommended_interval_minutes + "m"],
+  ].map(([l, n], i) => `<div class="stat"><div class="n ${i === 1 ? (TIER_CLASS[h.tier] || "") : ""}">${esc(String(n))}</div><div class="l">${l}</div></div>`).join("");
+  // Progress toward the next reserve milestone (500 / 1000 / 2000).
+  $("#wcstats", root).insertAdjacentHTML("afterend",
+    `<div class="muted" style="margin:6px 0">Reserve milestones — minimum ${h.thresholds.minimum} ·
+      healthy ${h.thresholds.healthy} · elite ${h.thresholds.elite}.
+      ${Math.round(h.progress_to_next * 100)}% to next.</div>`);
+  $("#wccats", root).innerHTML = Object.entries(h.by_category || {})
+    .map(([cat, n]) => `<span class="badge pillar">${esc(cat)}: ${n}</span>`).join("") || `<span class="muted">Empty — stock approved items.</span>`;
+  const { items } = await api("/v1/warchest/items");
+  $("#wclist", root).innerHTML = items.slice(0, 60).map((it) => `<div class="card">
+    <div class="hook">${esc(it.title)}</div>
+    <div class="meta">
+      <span class="badge pillar">${esc(it.category)}</span>
+      <span class="badge">${esc(it.platform || "—")}</span>
+      <span class="badge">Q ${(+it.quality_score).toFixed(1)}</span>
+      ${it.evergreen ? `<span class="badge good">evergreen</span>` : ""}
+      ${it.reuse_count ? `<span class="badge warn">used ${it.reuse_count}×</span>` : ""}
+    </div></div>`).join("") || `<div class="muted">No ready items. Approve content in the Queue, then “Stock approved”.</div>`;
+};
+
 // --- router ----------------------------------------------------------------
 async function show(name, seed) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
