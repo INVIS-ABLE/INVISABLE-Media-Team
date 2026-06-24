@@ -18,6 +18,11 @@ on:
     paths:
       - "desktop/**"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to publish (e.g. desktop-v0.1.0)"
+        required: false
+        default: "desktop-v0.1.0"
 
 permissions:
   contents: write
@@ -95,19 +100,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: desktop
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'desktop-nightly' }}
-          releaseName: "INVISABLE Media Team ${{ github.ref_type == 'tag' && github.ref_name || 'nightly' }}"
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version || 'desktop-v0.1.0' }}
+          releaseName: "INVISABLE Media Team ${{ github.ref_type == 'tag' && github.ref_name || inputs.version || 'desktop-v0.1.0' }}"
           releaseBody: |
             Double-click installer for the INVISABLE® Media Team desktop app.
 
             Download **`INVISABLE.Media.Team_*_x64-setup.exe`** below, run it, and pick
             your role on first launch (Command Centre on the server, Studio Worker on
             the 5090). See `desktop/README.md` for setup.
-          # Publish a real (non-draft) release so it shows on the repo's front page and
-          # the download link resolves. Tagged builds are full releases; manual
-          # dispatch publishes a rolling "nightly" pre-release.
+          # Publish a real, full (non-draft, non-prerelease) Release so it shows on the
+          # repo's front page and the "latest release" download link resolves. The tag
+          # is created server-side by the runner's GITHUB_TOKEN (no local tag push
+          # needed). Tagged builds and manual dispatch both publish a full release.
           releaseDraft: false
-          prerelease: ${{ github.ref_type != 'tag' }}
+          prerelease: false
           # Produces: "INVISABLE Media Team_x.y.z_x64-setup.exe" (NSIS) + MSI.
 
       - name: Upload installer as a run artifact (belt-and-braces)
