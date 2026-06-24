@@ -15,8 +15,7 @@ it from any machine with nothing but a file browser.
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from invisable_os.config import get_settings
@@ -63,7 +62,7 @@ class StudioStore:
 
     def save_batch(self, posts: list[StudioPost]) -> list[StudioPost]:
         """Write a freshly generated batch to ``generated/``. Stamps ``created_at``."""
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         for post in posts:
             if not post.created_at:
                 post.created_at = now

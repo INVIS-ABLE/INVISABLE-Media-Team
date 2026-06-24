@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from invisable_os.engines.studio import BATCHES, DAILY20_MIX, StudioEngine
 from invisable_os.main import app
-from invisable_os.models.studio import StudioPost, StudioStatus
+from invisable_os.models.studio import StudioStatus
 from invisable_os.studio.store import StudioStore
 
 client = TestClient(app)
