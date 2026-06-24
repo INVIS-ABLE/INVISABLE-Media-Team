@@ -234,5 +234,156 @@ def _tesseract_text_detector(  # pragma: no cover
 
 
 def region_probes() -> list[VideoProbe]:
-    """The visual region probes (faces + on-screen text)."""
-    return [OpenCVFaceProbe(), OCRTextProbe()]
+    """The visual region probes (faces + on-screen text + objects)."""
+    return [OpenCVFaceProbe(), OCRTextProbe(), ObjectRegionProbe()]
+
+
+# --- Object probe (AGPL-safe: OpenCV DNN + a permissively-licensed model) ----
+
+# A detection on one frame, with a class label and confidence per box.
+LabelledFrame = tuple[int, int, list[tuple[str, int, int, int, int, float]]]
+
+# Map detector class labels (lower-case) → the protected region kind they imply.
+# Conservative defaults aimed at trades/founder content; extend per the model used.
+DEFAULT_OBJECT_LABELS: dict[str, RegionKind] = {
+    # tools & products in shot — must not be covered by a caption
+    "knife": RegionKind.HAND_TOOL_PRODUCT,
+    "scissors": RegionKind.HAND_TOOL_PRODUCT,
+    "hammer": RegionKind.HAND_TOOL_PRODUCT,
+    "drill": RegionKind.HAND_TOOL_PRODUCT,
+    "wrench": RegionKind.HAND_TOOL_PRODUCT,
+    "screwdriver": RegionKind.HAND_TOOL_PRODUCT,
+    "saw": RegionKind.HAND_TOOL_PRODUCT,
+    "tool": RegionKind.HAND_TOOL_PRODUCT,
+    "bottle": RegionKind.HAND_TOOL_PRODUCT,
+    "cup": RegionKind.HAND_TOOL_PRODUCT,
+    "laptop": RegionKind.HAND_TOOL_PRODUCT,
+    "cell phone": RegionKind.HAND_TOOL_PRODUCT,
+    "book": RegionKind.HAND_TOOL_PRODUCT,
+    # brand marks
+    "logo": RegionKind.LOGO,
+    "watermark": RegionKind.LOGO,
+    "brand": RegionKind.LOGO,
+    "sponsor": RegionKind.SPONSOR_PRODUCT,
+}
+
+MIN_OBJECT_CONFIDENCE = 0.4
+
+
+def labelled_detections_to_regions(
+    frames: list[LabelledFrame],
+    label_map: dict[str, RegionKind],
+    *,
+    min_confidence: float = MIN_OBJECT_CONFIDENCE,
+) -> list[RegionModel]:
+    """Map labelled pixel detections → merged, normalised protected regions.
+
+    Labels not in ``label_map`` are ignored (we only protect what matters), and
+    detections below ``min_confidence`` are dropped.
+    """
+    regions: list[RegionModel] = []
+    for frame_w, frame_h, boxes in frames:
+        for (label, x, y, w, h, conf) in boxes:
+            kind = label_map.get(label.lower())
+            if kind is None or conf < min_confidence:
+                continue
+            regions.append(
+                RegionModel(kind=kind, box=pixels_to_box(x, y, w, h, frame_w, frame_h),
+                            confidence=round(conf, 3), label=label)
+            )
+    return merge_regions(regions)
+
+
+class ObjectRegionProbe:
+    """Detect tools/products/logos → protected regions (OpenCV DNN, dry-run safe).
+
+    The default real backend is OpenCV's DNN module (BSD) loading a
+    **permissively-licensed** model configured via ``OBJECT_DETECT_MODEL`` /
+    ``OBJECT_DETECT_CONFIG`` — deliberately *not* Ultralytics YOLO (AGPL, blocked by
+    the model-licence gate). Without a model configured it degrades to a no-op
+    dry-run; the label→region mapping is pure and unit-tested via an injected detector.
+    """
+
+    name = "object-region"
+
+    def __init__(
+        self,
+        detector=None,
+        *,
+        force_available: bool = False,
+        label_map: dict[str, RegionKind] | None = None,
+        min_confidence: float = MIN_OBJECT_CONFIDENCE,
+        sample_count: int = DEFAULT_SAMPLE_COUNT,
+    ) -> None:
+        self._detector = detector
+        self._force = force_available
+        self.label_map = label_map or DEFAULT_OBJECT_LABELS
+        self.min_confidence = min_confidence
+        self.sample_count = sample_count
+
+    @property
+    def available(self) -> bool:
+        if self._force or self._detector is not None:
+            return True
+        import os
+
+        return importlib_available("cv2") and bool(os.getenv("OBJECT_DETECT_MODEL"))
+
+    def probe(self, path: str, spec: VideoSpec) -> VideoSpec:
+        if not self.available:
+            log.info("object detector not configured; ObjectRegionProbe dry-run for %s", path)
+            return spec
+        detector = self._detector or _cv2_dnn_object_detector
+        try:
+            frames = detector(path, self.sample_count)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("object detection failed for %s: %s", path, exc)
+            return spec
+        objects = labelled_detections_to_regions(
+            frames, self.label_map, min_confidence=self.min_confidence
+        )
+        return spec.model_copy(update={"regions": [*spec.regions, *objects]})
+
+
+def _cv2_dnn_object_detector(  # pragma: no cover
+    path: str, sample_count: int
+) -> list[LabelledFrame]:
+    """OpenCV DNN inference with a permissively-licensed model (paths via env)."""
+    import os
+
+    import cv2  # type: ignore
+
+    model = os.environ["OBJECT_DETECT_MODEL"]
+    config = os.getenv("OBJECT_DETECT_CONFIG", "")
+    labels_path = os.getenv("OBJECT_DETECT_LABELS", "")
+    labels = (
+        [ln.strip() for ln in open(labels_path) if ln.strip()] if labels_path else []
+    )
+    net = cv2.dnn.readNet(model, config) if config else cv2.dnn.readNet(model)
+
+    cap = cv2.VideoCapture(path)
+    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+    idxs = (
+        [int(total * i / (sample_count + 1)) for i in range(1, sample_count + 1)]
+        if total else [0]
+    )
+    frames: list[LabelledFrame] = []
+    for idx in idxs:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        ok, frame = cap.read()
+        if not ok:
+            continue
+        h, w = frame.shape[:2]
+        blob = cv2.dnn.blobFromImage(frame, size=(300, 300), swapRB=True)
+        net.setInput(blob)
+        detections = net.forward()
+        boxes: list[tuple[str, int, int, int, int, float]] = []
+        for det in detections[0, 0]:
+            conf = float(det[2])
+            class_id = int(det[1])
+            label = labels[class_id] if 0 <= class_id < len(labels) else str(class_id)
+            x0, y0, x1, y1 = (det[3] * w, det[4] * h, det[5] * w, det[6] * h)
+            boxes.append((label, int(x0), int(y0), int(x1 - x0), int(y1 - y0), conf))
+        frames.append((w, h, boxes))
+    cap.release()
+    return frames
