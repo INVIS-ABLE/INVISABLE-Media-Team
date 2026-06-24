@@ -5,6 +5,12 @@ single most important part of INVISABLE OS: it is where the values stop being a
 README and become enforced behaviour.
 """
 
+from invisable_os.guardrails.crisis import (
+    CrisisVerdict,
+    SensitiveTopic,
+    crisis_review,
+    detect_sensitive_topics,
+)
 from invisable_os.guardrails.engine import (
     check,
     explain,
@@ -34,6 +40,10 @@ __all__ = [
     "humour_violations",
     "risk_scan",
     "swear_level",
+    "crisis_review",
+    "detect_sensitive_topics",
+    "CrisisVerdict",
+    "SensitiveTopic",
     "BANNED_EMOJI",
     "NEVER_DO",
     "NEVER_OPTIMISE_FOR",

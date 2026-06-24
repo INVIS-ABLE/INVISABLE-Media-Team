@@ -24,7 +24,13 @@ from invisable_os.engines import (
 )
 from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
-from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
+from invisable_os.guardrails import (
+    NEVER_DO,
+    NEVER_OPTIMISE_FOR,
+    OPTIMISE_FOR,
+    check,
+    crisis_review,
+)
 from invisable_os.guardrails.model_licensing import MODEL_LICENCES, licence_check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
 from invisable_os.media.probes import probe_video
@@ -141,6 +147,16 @@ def guardrail_check(req: GuardrailRequest) -> dict:
     )
     verdict = check(candidate)
     return verdict.model_dump()
+
+
+class CrisisRequest(BaseModel):
+    text: str
+
+
+@router.post("/v1/crisis/check")
+def crisis_check(req: CrisisRequest) -> dict:
+    """Crisis / Sensitive Topic Mode: detect serious topics and the care they demand."""
+    return crisis_review(req.text).as_dict()
 
 
 @router.post("/v1/engagement/comment")
