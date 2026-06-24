@@ -1,0 +1,94 @@
+{
+  "name": "INVISABLE OS — Comment-to-Content",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "*/30 * * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every 30 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "INTEGRATION POINT: replace this Set node with a Composio (or platform API) node that pulls recent comments/DMs. Keep the same output shape — one item per comment with a `summary` field — and the rest of the workflow works unchanged. Secrets live in n8n credentials, never in this JSON.",
+        "height": 200,
+        "width": 320
+      },
+      "id": "composio_note",
+      "name": "↳ Composio poll goes here",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 240, 60 ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "summary",
+              "value": "A follower asks: 'how do I explain to my boss that I look fine but feel awful?'",
+              "type": "string"
+            },
+            { "id": "c2", "name": "platform", "value": "instagram", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sample_comments",
+      "name": "Inbound comments (sample)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/agents/route?task=draft a supportive reply and a FAQ video brief from a community comment",
+        "options": {}
+      },
+      "id": "route",
+      "name": "Route → Comment-to-Content agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 720, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/engagement/comment",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ post_summary: $('Inbound comments (sample)').item.json.summary, platform: $('Inbound comments (sample)').item.json.platform }) }}",
+        "options": {}
+      },
+      "id": "draft",
+      "name": "Draft compliant reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 960, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "Only guardrail-passing drafts come back `approved:true`. Replies and FAQ/video briefs go to the approval queue for a human — the platform never auto-posts comments.",
+        "height": 150,
+        "width": 320
+      },
+      "id": "note",
+      "name": "Human-approved, never auto-posted",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 1200, 240 ]
+    }
+  ],
+  "connections": {
+    "Every 30 minutes": { "main": [ [ { "node": "Inbound comments (sample)", "type": "main", "index": 0 } ] ] },
+    "Inbound comments (sample)": { "main": [ [ { "node": "Route → Comment-to-Content agent", "type": "main", "index": 0 } ] ] },
+    "Route → Comment-to-Content agent": { "main": [ [ { "node": "Draft compliant reply", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}

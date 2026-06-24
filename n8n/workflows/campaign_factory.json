@@ -1,0 +1,70 @@
+{
+  "name": "INVISABLE OS — Campaign Factory",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Campaign webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/tournament/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ brief: ($json.body && $json.body.topic) || 'INVISABLE awareness campaign', platform: 'tiktok', count: 80, select: 5, content_format: 'short_video' }) }}",
+        "options": {}
+      },
+      "id": "tiktok",
+      "name": "TikTok set (5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 520, 220 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/tournament/run",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ brief: ($('Campaign webhook').item.json.body && $('Campaign webhook').item.json.body.topic) || 'INVISABLE awareness campaign', platform: 'instagram', count: 80, select: 5, content_format: 'carousel' }) }}",
+        "options": {}
+      },
+      "id": "instagram",
+      "name": "Instagram set (5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 520, 380 ]
+    },
+    {
+      "parameters": {
+        "content": "Fire with `POST {{webhook}}/campaign  {\"topic\": \"tool theft\"}`. Each format runs its own tournament — generated, guardrail-gated, mission/quality-scored and founder-rebalanced inside the core. Winners are returned for the founder to send into the approval queue. Add more httpRequest nodes for Reels / Stories / partner-safe / press versions as needed.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "note",
+      "name": "On-demand multi-format campaign",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 820, 240 ]
+    }
+  ],
+  "connections": {
+    "Campaign webhook": {
+      "main": [ [
+        { "node": "TikTok set (5)", "type": "main", "index": 0 },
+        { "node": "Instagram set (5)", "type": "main", "index": 0 }
+      ] ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}
