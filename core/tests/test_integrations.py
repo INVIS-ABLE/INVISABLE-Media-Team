@@ -113,6 +113,21 @@ def test_sync_metrics_offline_is_noop():
     assert res["ingested"] == 0
 
 
+def test_sync_metrics_appends_to_recognition_ledger():
+    repo = get_repository()
+    before = len(repo.list_founder_recognition())
+    sync_metrics(signals=[
+        PerformanceSignal(candidate_id="c1", platform="instagram",
+                          metric=SuccessMetric.MEDIA_MENTIONS, value=4),
+    ])
+    after = repo.list_founder_recognition()
+    assert len(after) == before + 1
+    assert after[-1]["index_value"] > 0
+    # An empty sync must NOT log a reading.
+    sync_metrics(signals=[])
+    assert len(repo.list_founder_recognition()) == len(after)
+
+
 # --- API --------------------------------------------------------------------
 
 

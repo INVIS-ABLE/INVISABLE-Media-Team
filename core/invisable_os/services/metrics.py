@@ -33,6 +33,10 @@ def sync_metrics(
     report = (watchtower or AlgorithmWatchtower()).ingest(signals)
     for s in signals:
         repo.record_signal(s.candidate_id, s.platform, s.metric.value, s.value, s.themes)
+    # Append to the Founder Recognition ledger so the index can be charted over time.
+    # Only when something was actually ingested, to avoid logging empty no-op readings.
+    if signals:
+        repo.record_founder_recognition(report.founder_recognition_index, report.totals)
 
     return {
         "source": source,
