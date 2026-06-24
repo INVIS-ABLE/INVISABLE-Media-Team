@@ -24,6 +24,30 @@ honest state of each piece:
 - ✅ **FastAPI surface**, **Postgres schema**, **Docker Compose** stack, **n8n**
   daily-cycle workflow, **CI**.
 
+### Departments build (added)
+
+- ✅ **Humour & Personality Engine** — content personality mix + style rotation;
+  refined brand-safety that allows self-deprecating/British/situational humour and
+  natural swearing, but blocks slurs, harassment, and punching down. Tested.
+- ✅ **Mission Advisor** (`mission.py`) — five mission impacts + advance/hold/reject
+  verdict, long-term weighted highest. Tested.
+- ✅ **Quality Control** (`quality.py`) — 11-dimension /10 rubric with the
+  below-8-must-improve gate. Tested.
+- ✅ **Content Flywheel** (`flywheel.py`) — one idea → 7+ assets. Tested.
+- ✅ **Daily Output System** (`daily.py`) — the 20-post day (~140 assets), each
+  gated/scored/spun. Tested.
+- ✅ **Fixed Tag Network** (`tagging.py`) — approved-only, paused/do-not-tag,
+  per-platform, max-tags. Tested.
+- ✅ **Risk Scanner** — advisory flags (medical/legal/benefits/sponsor/copyright)
+  for human review. Tested.
+- ✅ **Agent Library** (`agents/`) — 38 specialist agents + router; guardrails
+  baked into every prompt. Tested.
+- ✅ Department **DB schema** (tag network, people/consent, partners, CRM,
+  competitors, opportunities, media contacts, community stories, knowledge, hooks,
+  mission/risk).
+- ✅ Docs: departments, god-tier architecture, n8n workflow map, PWA layout, daily
+  pipeline, agent library, install order.
+
 ## Next (clearly scoped extensions)
 
 - ⏳ **Live generation at volume** — wire Claude/Ollama prompts for hundreds of

@@ -103,6 +103,153 @@ MEDICAL_OVERCLAIM_TRIPWIRES: tuple[str, ...] = (
     "miracle cure",
 )
 
+# ============================================================================
+# Humour & Personality brand-safety
+#
+# INVISABLE® humour should never be sterile. The brand laughs *with* the
+# community and at the founder's own experiences — never at vulnerable people.
+# The rule: humour about your own experience, self-deprecation, shared
+# frustration, trades banter, and situations is ALLOWED. Targeting people,
+# disabilities, illnesses, or vulnerable groups is NOT. The goal is to make
+# people laugh with us, not at others.
+# ============================================================================
+
+# First-person markers. Their presence makes a line self-referential / self-
+# deprecating, which is allowed even when it jokes about illness or struggle.
+FIRST_PERSON_MARKERS: tuple[str, ...] = (
+    "i ",
+    "i'm",
+    "i've",
+    "i'd",
+    "im ",
+    "my ",
+    "me ",
+    "myself",
+    "we ",
+    "we're",
+    "us ",
+    "our ",
+    "mine",
+)
+
+# Slur / hate blocklist used SOLELY to block such content. Kept small and
+# extensible (load more from an external moderation list in production). These
+# are matched as whole words so ordinary text is never caught.
+SLUR_BLOCKLIST: tuple[str, ...] = (
+    "retard",
+    "retarded",
+    "spastic",
+    "spaz",
+    "cripple",
+    "cripples",
+    "psycho",  # when used as a slur for mental illness
+    "nutter",
+    "window licker",
+)
+
+# Derogatory frames that, when aimed at a group in the third person, constitute
+# "punching down".
+PUNCHING_DOWN_FRAMES: tuple[str, ...] = (
+    "are lazy",
+    "are just lazy",
+    "are faking",
+    "are fakers",
+    "are scroungers",
+    "are spongers",
+    "are scumbags",
+    "are pathetic",
+    "are losers",
+    "are a joke",
+    "deserve it",
+    "just want attention",
+    "should be ashamed",
+    "are a burden",
+    "are worthless",
+    "need to get over it",
+)
+
+# Group references that must not be the *target* of mockery (third person).
+VULNERABLE_GROUP_TOKENS: tuple[str, ...] = (
+    "disabled people",
+    "sick people",
+    "ill people",
+    "chronically ill",
+    "people with disabilities",
+    "the disabled",
+    "benefit claimants",
+    "claimants",
+    "immigrants",
+    "the unemployed",
+    "homeless people",
+    "mental health patients",
+)
+
+# Harassment of a named individual — a directed insult at an @handle / name.
+HARASSMENT_FRAMES: tuple[str, ...] = (
+    "you're pathetic",
+    "you are pathetic",
+    "you're a joke",
+    "you idiot",
+    "you moron",
+    "shut up you",
+    "nobody likes you",
+    "kill yourself",
+    "kys",
+)
+
+# Swearing classifier. Swearing is allowed when it is natural, relatable, and
+# British in register — and never when it targets a person or group (that is
+# caught by the harassment / punching-down checks above).
+SWEAR_WORDS_LIGHT: tuple[str, ...] = ("damn", "bloody", "crap", "bugger", "sod", "arse", "hell")
+SWEAR_WORDS_MODERATE: tuple[str, ...] = ("shit", "piss", "bollocks", "pissed", "knobhead")
+SWEAR_WORDS_STRONG: tuple[str, ...] = ("fuck", "fucking", "fucked", "wanker", "twat")
+
+# ============================================================================
+# Risk Scanner — advisory flags for high-stakes content that a human should
+# review before publishing (never auto-blocked, but never auto-published either).
+# ============================================================================
+RISK_CATEGORIES: dict[str, tuple[str, ...]] = {
+    "medical_advice": (
+        "you should take",
+        "stop taking your",
+        "the right dose",
+        "treat your",
+        "diagnose",
+        "you have",
+    ),
+    "benefits_advice": (
+        "pip",
+        "esa",
+        "universal credit",
+        "you will get",
+        "you qualify for",
+        "claim for",
+        "tribunal",
+    ),
+    "legal_advice": (
+        "you can sue",
+        "your employer must",
+        "it's illegal for",
+        "you're entitled to",
+        "unfair dismissal",
+        "discrimination claim",
+    ),
+    "sponsor_claim": (
+        "guarantees",
+        "best on the market",
+        "proven to",
+        "outperforms",
+        "number one",
+    ),
+    "copyright": (
+        "official audio",
+        "use this song",
+        "movie clip",
+        "tv clip",
+        "copyrighted",
+    ),
+}
+
 # The Prime Directive, verbatim, for display and logging.
 PRIME_DIRECTIVE = (
     "If a decision increases reach but damages trust, reject it. "

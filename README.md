@@ -61,6 +61,28 @@ The platform is composed of cooperating engines, each a real module in
 
 See [`docs/ENGINES.md`](docs/ENGINES.md) for the detailed design of each.
 
+### From tools to a media organisation — the Departments
+
+The platform is organised as departments, not disconnected tools. On top of the
+engines above sit:
+
+| Department | What it adds |
+| ---------- | ------------ |
+| 🏛️ **Governance** | **Mission Advisor** (scores every idea on awareness/community/fundraising/partner/long-term impact) · **Quality Control** (11 dimensions /10, must clear the bar) · Brand Guardian veto. |
+| 🎨 **Creative** | Humour & Personality engine — warm, British, self-deprecating humour that laughs *with* the community, never punches down. The content personality mix (30% humour · 25% education · 20% community · 10% founder · 5% partner · 5% trends · 5% campaigns). |
+| 🎬 **Production** | **Content Flywheel** — one idea → TikTok, Reel, caption, quote card, carousel, story poll, comment angle + a future idea. |
+| ⚙️ **Automation** | **Daily Output System** — produces the day's 20 posts (~140 assets), each gated, mission-scored, quality-checked, and spun. |
+| 🤝 **Relationship** | Fixed Tag Network (approved-only tagging), Partner CRM, People & consent. |
+| 🕵️ **Intelligence / 📚 Knowledge / 🎤 PR** | Competitor & opportunity scanning, NHS/benefits & construction knowledge, journalist/press tooling. |
+
+38 specialist **agents** ([`docs/AGENT_LIBRARY.md`](docs/AGENT_LIBRARY.md)) carry the
+guardrails into every call. See [`docs/DEPARTMENTS.md`](docs/DEPARTMENTS.md),
+[`docs/GODTIER_ARCHITECTURE.md`](docs/GODTIER_ARCHITECTURE.md),
+[`docs/DAILY_PIPELINE.md`](docs/DAILY_PIPELINE.md),
+[`docs/N8N_WORKFLOW_MAP.md`](docs/N8N_WORKFLOW_MAP.md),
+[`docs/PWA_DASHBOARD.md`](docs/PWA_DASHBOARD.md), and
+[`docs/INSTALL_ORDER.md`](docs/INSTALL_ORDER.md).
+
 ---
 
 ## Originality & ethics (non-negotiable)
