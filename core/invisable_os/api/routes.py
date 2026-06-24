@@ -44,6 +44,8 @@ from invisable_os.services import (
     schedule_next,
     select_next,
     stock_approved,
+    sync_metrics,
+    sync_post_to_dam,
 )
 from invisable_os.store import get_repository
 
@@ -279,6 +281,46 @@ def media_assemble(item_id: str) -> dict:
 @router.get("/v1/media")
 def list_media(item_id: str | None = None) -> dict:
     return {"assets": get_repository().list_media(item_id)}
+
+
+# --- Integrations: ResourceSpace (DAM) + Metricool (metrics) -----------------
+
+
+class MetricsSyncRequest(BaseModel):
+    signals: list[PerformanceSignal] | None = None
+    start: str = ""
+    end: str = ""
+
+
+@router.post("/v1/dam/sync/{item_id}")
+def dam_sync(item_id: str) -> dict:
+    """Push a post's finished assets into ResourceSpace (dry-run unless configured)."""
+    return sync_post_to_dam(item_id)
+
+
+@router.post("/v1/metrics/sync")
+def metrics_sync(req: MetricsSyncRequest) -> dict:
+    """Ingest performance metrics (from Metricool, or provided) into the Watchtower."""
+    return sync_metrics(signals=req.signals, start=req.start, end=req.end)
+
+
+@router.get("/v1/integrations")
+def integrations_status() -> dict:
+    """Report which external integrations are configured."""
+    import os
+    import shutil
+
+    from invisable_os.integrations import MetricoolClient, ResourceSpaceClient
+
+    return {
+        "resourcespace": ResourceSpaceClient().configured,
+        "metricool": MetricoolClient().configured,
+        "postiz": bool(os.getenv("POSTIZ_API_URL") and os.getenv("POSTIZ_API_KEY")),
+        "comfyui": bool(os.getenv("COMFYUI_BASE_URL")),
+        "elevenlabs": bool(os.getenv("ELEVENLABS_API_KEY")),
+        "claude": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "ffmpeg": shutil.which("ffmpeg") is not None,
+    }
 
 
 # --- Relationship: tag network & partners -----------------------------------
