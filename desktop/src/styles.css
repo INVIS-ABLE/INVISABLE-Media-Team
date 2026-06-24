@@ -235,6 +235,31 @@ body {
 
 .loading { color: var(--muted); padding: 20px; }
 
+/* --- Scheduled calendar --- */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.cal-day {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden;
+}
+.cal-day__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  background: var(--bg-2); position: sticky; top: 0;
+}
+.cal-day__date { font-weight: 700; }
+.cal-day__count {
+  font-size: 11px; color: var(--accent);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 20px; padding: 1px 9px;
+}
+.cal-day__items { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.cal-day__items .card { background: var(--panel); }
+
 /* --- Modal (post editor) --- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 50;

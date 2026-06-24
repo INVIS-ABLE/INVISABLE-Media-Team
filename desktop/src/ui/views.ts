@@ -187,6 +187,63 @@ function formatQueueView(title: string, format: string): HTMLElement {
   return host;
 }
 
+// --- Scheduled Posts calendar (day-grouped) ---------------------------------
+
+function calendarView(): HTMLElement {
+  const host = el("div", {});
+  const render = () =>
+    asyncBox(async () => {
+      const r = await api<{ calendar: Record<string, QueueItem[]> }>(
+        "GET",
+        "/api/calendar",
+      );
+      if (!r.ok) {
+        return section("Scheduled Posts", el("div", { class: "error-box" }, r.error ?? "not connected"));
+      }
+      const cal = r.body.calendar ?? {};
+      const days = Object.keys(cal).sort();
+      const refresh = () => reload(host, render);
+      if (days.length === 0) {
+        return section(
+          "Scheduled Posts",
+          el("p", { class: "muted" }, "Nothing scheduled yet — approve posts and schedule them."),
+        );
+      }
+      const dayCol = (day: string) =>
+        el(
+          "div",
+          { class: "cal-day" },
+          el(
+            "div",
+            { class: "cal-day__head" },
+            el("span", { class: "cal-day__date" }, formatDay(day)),
+            el("span", { class: "cal-day__count" }, fmt(cal[day].length)),
+          ),
+          el(
+            "div",
+            { class: "cal-day__items" },
+            ...cal[day].map((it) => postCard(it, refresh)),
+          ),
+        );
+      return section(
+        `Scheduled Posts — ${days.length} day${days.length > 1 ? "s" : ""}`,
+        el("div", { class: "cal-grid" }, ...days.map(dayCol)),
+      );
+    });
+  reload(host, render);
+  return host;
+}
+
+function formatDay(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 // --- Dashboard --------------------------------------------------------------
 
 function statTile(label: string, value: string, cls = ""): HTMLElement {
@@ -549,7 +606,7 @@ export const VIEWS: Record<string, () => HTMLElement> = {
   "content-factory": contentFactoryView,
   warchest: warchestView,
   "approval-queue": () => queueView("Approval Queue", "pending_review"),
-  scheduled: () => queueView("Scheduled Posts", "scheduled"),
+  scheduled: calendarView,
   published: () => queueView("Published Posts", "published"),
   rejected: () => queueView("Rejected Posts", "rejected"),
   "story-queue": () => formatQueueView("Story Queue", "story"),

@@ -205,6 +205,29 @@ def test_post_edit_missing_id_is_404():
     assert r.status_code == 404
 
 
+def test_calendar_groups_scheduled_posts_by_day():
+    from invisable_os.models.content import QueueStatus
+
+    repo = get_repository()
+    item_id = repo.enqueue(
+        {
+            "candidate_id": "c-cal",
+            "candidate": {"brief": "x", "body": "soon"},
+            "status": "approved",
+            "platform": "instagram",
+        }
+    )
+    # SCHEDULED stamps scheduled_at, which the calendar groups on.
+    scheduled = repo.transition(item_id, QueueStatus.SCHEDULED)
+    day = scheduled["scheduled_at"][:10]
+
+    r = client.get("/api/calendar")
+    assert r.status_code == 200
+    cal = r.json()["calendar"]
+    assert day in cal
+    assert any(i["id"] == item_id for i in cal[day])
+
+
 def test_post_replace_media_records_and_points_at_asset():
     item_id = _seed_post()
     r = client.post(
