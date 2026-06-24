@@ -67,6 +67,20 @@ query relationship_touch.follow_up_at <= today
   → notify founder via PWA: "Follow up with X (last contact …)"
 ```
 
+### 8. Agent Swarm Cycle  *(every 30 min ≈ 48/day)*
+```
+schedule :13,:43
+  → GET /v1/warchest  {reserve tier}
+  → IF tier != elite (reserve below 2,000):
+      → POST /v1/swarm/run  {drafts_per_topic: 2, live_sources: true}
+          (scan live sources → generate → gate → stock survivors)
+      → POST /v1/warchest/stock   (top up the reserve from newly approved)
+```
+Reserve-aware and quality-first: the swarm only runs when the reserve is below
+ELITE, generates more than it publishes, and rejects more than it keeps. Tighten
+the schedule to `*/15` for up to 96/day when the War Chest is healthy. See
+[`AGENT_SWARM.md`](AGENT_SWARM.md).
+
 ## Conventions
 
 - Every workflow is **read-mostly against the core API**; the core owns the rules.
