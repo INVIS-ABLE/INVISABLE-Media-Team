@@ -26,6 +26,7 @@ from invisable_os.engines.remix import (
     TrendScanner,
     VoiceoverEngine,
 )
+from invisable_os.engines.studio import StudioEngine
 from invisable_os.engines.tagging import TagNetwork
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.engines.watchtower import AlgorithmWatchtower
@@ -48,4 +49,5 @@ __all__ = [
     "PopCultureIndex",
     "ParodyEngine",
     "VoiceoverEngine",
+    "StudioEngine",
 ]

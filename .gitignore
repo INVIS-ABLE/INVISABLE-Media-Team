@@ -26,6 +26,9 @@ postgres-data/
 *.sqlite3
 *.log
 
+# 5090 Studio Engine local exports (generated content, reviewed locally)
+exports/
+
 # Editor / OS
 .idea/
 .vscode/

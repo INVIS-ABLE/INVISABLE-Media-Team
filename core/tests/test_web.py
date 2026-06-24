@@ -64,6 +64,8 @@ def test_dashboard_only_uses_existing_api_endpoints():
         "/v1/integrations", "/v1/metrics", "/v1/dam",
         # Founder Recognition panel
         "/v1/founder",
+        # 5090 Studio Engine (local, offline content generation)
+        "/v1/studio",
     }
     for path in called:
         assert any(path.startswith(p) for p in known_prefixes), f"dashboard calls unknown {path}"

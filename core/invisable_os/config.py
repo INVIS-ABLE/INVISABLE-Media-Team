@@ -46,6 +46,18 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5:14b"
 
     @property
+    def export_dir(self) -> str:
+        """Local root for the Studio Engine's export folders (offline mode).
+
+        Defaults to ``./exports`` so the 5090 Studio app writes generated/approved/
+        rejected/ready_to_post sub-folders next to wherever it runs. Override with
+        ``INVISABLE_EXPORT_DIR`` to point at any local path.
+        """
+        import os
+
+        return os.getenv("INVISABLE_EXPORT_DIR", "exports")
+
+    @property
     def has_claude(self) -> bool:
         import os
 

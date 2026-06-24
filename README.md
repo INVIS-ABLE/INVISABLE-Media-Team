@@ -83,6 +83,7 @@ The platform is composed of cooperating engines, each a real module in
 | **Intelligence Harvester** | Monitor *public* information sources, trend signals, creator content, and emerging opportunities. |
 | **Founder Engine** | Keep founder presence at ~80% of published content and grow founder recognition. |
 | **Remix, Parody & Trend Intelligence Engine** | Scan culture & trends, index pop-culture safely, and create *original* parody/reaction/voiceover/meme content — a rights-safe remix studio, never a "steal and repost" machine. |
+| **5090 Studio Engine** | Generate, review and export strong content **fully offline** on the Studio Worker (the 5090) — no server, PWA or social connection. Each post arrives complete (hook, caption, hashtags, script, visual idea, founder-presence suggestion) with four review scores (risk, mission, humour, authenticity), then approve/reject/edit/export to local folders. |
 | **INVISABLE_BRAIN** | Shared long-term memory (vector + structured) that every engine learns from. |
 
 See [`docs/ENGINES.md`](docs/ENGINES.md) for the detailed design of each.
