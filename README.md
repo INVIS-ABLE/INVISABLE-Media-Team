@@ -168,6 +168,7 @@ pip install -e ".[dev]"
 pytest                      # 56 deterministic tests
 
 invisable migrate           # create tables (local SQLite by default)
+invisable doctor            # run the whole pipeline once & confirm everything works
 invisable plan --persist    # run the day's 20 posts into the approval queue
 invisable queue             # review what's waiting
 invisable approve <id>      # approve an item
