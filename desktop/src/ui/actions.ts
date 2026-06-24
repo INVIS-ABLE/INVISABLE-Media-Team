@@ -55,9 +55,18 @@ export const resumeAccount = (account: string) =>
 // --- Content ----------------------------------------------------------------
 
 export const requestContent = (brief: string, opts: Record<string, unknown> = {}) =>
-  run("Create Specific Content Request", async () =>
-    ok("Content request", await api("POST", "/api/content/request", { brief, ...opts })),
-  );
+  run("Create Specific Content Request", async () => {
+    const r = await api<{ queued_ids?: string[] }>("POST", "/api/content/request", {
+      brief,
+      ...opts,
+    });
+    if (r.ok) {
+      const n = r.body?.queued_ids?.length ?? 0;
+      log("info", `Queued ${n} post${n === 1 ? "" : "s"} for review ✓`);
+    } else {
+      log("error", `Content request ✗ ${r.error ?? "request failed"}`);
+    }
+  });
 
 export const generatePost = (brief: string) =>
   requestContent(brief, { count: 1, campaign: false });
