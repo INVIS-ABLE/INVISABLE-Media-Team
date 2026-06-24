@@ -149,6 +149,96 @@ class PerfSignalRow(Base):
     observed_at = Column(DateTime(timezone=True), default=_now)
 
 
+class PersonRow(Base):
+    """A real person with explicit consent and usage permissions (consent gating)."""
+
+    __tablename__ = "person_row"
+
+    id = Column(String, primary_key=True)
+    full_name = Column(String, nullable=False)
+    public_display_name = Column(String, default="")
+    role = Column(String, default="")
+    tiktok_handle = Column(String, nullable=True)
+    instagram_handle = Column(String, nullable=True)
+    consent_status = Column(String, default="pending", index=True)
+    voice_permission = Column(Boolean, default=False)
+    allowed_platforms = Column(JSON, default=list)
+    allowed_content_types = Column(JSON, default=list)
+    consent_expiry = Column(String, nullable=True)  # ISO date
+    do_not_use_notes = Column(String, default="")
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "full_name": self.full_name,
+            "public_display_name": self.public_display_name,
+            "role": self.role,
+            "tiktok_handle": self.tiktok_handle,
+            "instagram_handle": self.instagram_handle,
+            "consent_status": self.consent_status,
+            "voice_permission": self.voice_permission,
+            "allowed_platforms": self.allowed_platforms or [],
+            "allowed_content_types": self.allowed_content_types or [],
+            "consent_expiry": self.consent_expiry,
+            "do_not_use_notes": self.do_not_use_notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class RelationshipTouchRow(Base):
+    """A logged contact with a partner/person, with an optional follow-up date."""
+
+    __tablename__ = "relationship_touch"
+
+    id = Column(String, primary_key=True)
+    partner_id = Column(String, default="", index=True)
+    person_id = Column(String, default="", index=True)
+    summary = Column(String, default="")
+    channel = Column(String, default="")
+    touched_at = Column(DateTime(timezone=True), default=_now)
+    follow_up_at = Column(String, nullable=True, index=True)  # ISO date
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "partner_id": self.partner_id or None,
+            "person_id": self.person_id or None,
+            "summary": self.summary,
+            "channel": self.channel,
+            "touched_at": self.touched_at.isoformat() if self.touched_at else None,
+            "follow_up_at": self.follow_up_at,
+        }
+
+
+class CommunityStoryRow(Base):
+    """A community-submitted story, consent-gated before any social use."""
+
+    __tablename__ = "community_story"
+
+    id = Column(String, primary_key=True)
+    summary = Column(String, nullable=False)
+    condition = Column(String, default="")
+    wants_to_be_named = Column(Boolean, default=False)
+    allows_social_use = Column(Boolean, default=False)
+    consent_status = Column(String, default="pending", index=True)
+    suggested_formats = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), default=_now)
+
+    def as_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "summary": self.summary,
+            "condition": self.condition,
+            "wants_to_be_named": self.wants_to_be_named,
+            "allows_social_use": self.allows_social_use,
+            "consent_status": self.consent_status,
+            "suggested_formats": self.suggested_formats or [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class FounderRecognitionRow(Base):
     """A Founder Recognition Index ledger entry, written each Watchtower ingest.
 

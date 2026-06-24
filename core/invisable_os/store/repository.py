@@ -12,12 +12,20 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from invisable_os.models.content import QueueStatus
-from invisable_os.models.departments import Opportunity, Partner, TagNetworkMember
+from invisable_os.models.departments import (
+    CommunityStory,
+    Opportunity,
+    Partner,
+    Person,
+    RelationshipTouch,
+    TagNetworkMember,
+)
 from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.store.db import session_scope
 from invisable_os.store.models import (
     BotOutputRow,
     ChannelRow,
+    CommunityStoryRow,
     ExtractedHookRow,
     FounderRecognitionRow,
     MediaAssetRow,
@@ -25,8 +33,10 @@ from invisable_os.store.models import (
     OpportunityRow,
     PartnerRow,
     PerfSignalRow,
+    PersonRow,
     PopCultureRow,
     QueueItemRow,
+    RelationshipTouchRow,
     RemixJobRow,
     RenderJobRow,
     RightsAssetRow,
@@ -219,6 +229,135 @@ class Repository:
     def list_opportunities(self) -> list[dict]:
         with session_scope() as s:
             return [r.as_dict() for r in s.scalars(select(OpportunityRow))]
+
+    # --- People & consent ---------------------------------------------------
+
+    def add_person(self, person: Person) -> str:
+        with session_scope() as s:
+            s.merge(
+                PersonRow(
+                    id=person.id,
+                    full_name=person.full_name,
+                    public_display_name=person.public_display_name,
+                    role=person.role,
+                    tiktok_handle=person.tiktok_handle,
+                    instagram_handle=person.instagram_handle,
+                    consent_status=person.consent_status.value,
+                    voice_permission=person.voice_permission,
+                    allowed_platforms=person.allowed_platforms,
+                    allowed_content_types=person.allowed_content_types,
+                    consent_expiry=person.consent_expiry,
+                    do_not_use_notes=person.do_not_use_notes,
+                )
+            )
+        return person.id
+
+    def list_people(self) -> list[dict]:
+        with session_scope() as s:
+            return [r.as_dict() for r in s.scalars(select(PersonRow))]
+
+    def get_person(self, person_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(PersonRow, person_id)
+            return row.as_dict() if row else None
+
+    def set_consent(
+        self,
+        person_id: str,
+        consent_status: str,
+        *,
+        voice_permission: bool | None = None,
+        allowed_platforms: list[str] | None = None,
+        allowed_content_types: list[str] | None = None,
+        consent_expiry: str | None = None,
+    ) -> dict | None:
+        with session_scope() as s:
+            row = s.get(PersonRow, person_id)
+            if row is None:
+                return None
+            row.consent_status = consent_status
+            if voice_permission is not None:
+                row.voice_permission = voice_permission
+            if allowed_platforms is not None:
+                row.allowed_platforms = allowed_platforms
+            if allowed_content_types is not None:
+                row.allowed_content_types = allowed_content_types
+            if consent_expiry is not None:
+                row.consent_expiry = consent_expiry
+            return row.as_dict()
+
+    # --- Relationship CRM (touches & follow-ups) ----------------------------
+
+    def record_touch(self, touch: RelationshipTouch) -> str:
+        with session_scope() as s:
+            s.add(
+                RelationshipTouchRow(
+                    id=touch.id,
+                    partner_id=touch.partner_id or "",
+                    person_id=touch.person_id or "",
+                    summary=touch.summary,
+                    channel=touch.channel,
+                    follow_up_at=touch.follow_up_at,
+                )
+            )
+        return touch.id
+
+    def list_touches(self, *, partner_id: str | None = None,
+                     person_id: str | None = None) -> list[dict]:
+        with session_scope() as s:
+            rows = list(s.scalars(select(RelationshipTouchRow)))
+            out = [r.as_dict() for r in rows]
+        if partner_id:
+            out = [t for t in out if t["partner_id"] == partner_id]
+        if person_id:
+            out = [t for t in out if t["person_id"] == person_id]
+        out.sort(key=lambda t: t.get("touched_at") or "", reverse=True)
+        return out
+
+    def due_followups(self, on_or_before: str) -> list[dict]:
+        """Touches whose ``follow_up_at`` is due on/before the given ISO date."""
+        with session_scope() as s:
+            rows = list(s.scalars(select(RelationshipTouchRow)))
+            due = [
+                r.as_dict()
+                for r in rows
+                if r.follow_up_at and r.follow_up_at <= on_or_before
+            ]
+        due.sort(key=lambda t: t["follow_up_at"])
+        return due
+
+    # --- Community stories (consent-gated) ----------------------------------
+
+    def add_community_story(self, story: CommunityStory) -> str:
+        with session_scope() as s:
+            s.merge(
+                CommunityStoryRow(
+                    id=story.id,
+                    summary=story.summary,
+                    condition=story.condition,
+                    wants_to_be_named=story.wants_to_be_named,
+                    allows_social_use=story.allows_social_use,
+                    consent_status=story.consent_status.value,
+                    suggested_formats=story.suggested_formats,
+                )
+            )
+        return story.id
+
+    def list_community_stories(self, status: str | None = None) -> list[dict]:
+        with session_scope() as s:
+            rows = list(s.scalars(select(CommunityStoryRow)))
+        out = [r.as_dict() for r in rows]
+        if status:
+            out = [c for c in out if c["consent_status"] == status]
+        return out
+
+    def set_story_consent(self, story_id: str, consent_status: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(CommunityStoryRow, story_id)
+            if row is None:
+                return None
+            row.consent_status = consent_status
+            return row.as_dict()
 
     # --- Performance signals ------------------------------------------------
 

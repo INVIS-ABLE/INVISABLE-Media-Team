@@ -91,6 +91,22 @@ class Opportunity(BaseModel):
     suggested_action: str = ""
 
 
+class RelationshipTouch(BaseModel):
+    """A logged contact with a partner or person, with an optional follow-up date.
+
+    The Relationship CRM nudges the founder to keep real relationships warm; the
+    ``follow_up_at`` date drives the daily Relationship Follow-ups workflow.
+    """
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    partner_id: str | None = None
+    person_id: str | None = None
+    summary: str = ""
+    channel: str = ""  # email | call | dm | event | in_person
+    touched_at: str | None = None  # ISO datetime; defaults to now on persist
+    follow_up_at: str | None = None  # ISO date
+
+
 class CommunityStory(BaseModel):
     """A story submitted via the Community Story Portal, with consent gating."""
 

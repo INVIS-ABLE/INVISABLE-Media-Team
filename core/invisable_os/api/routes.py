@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from invisable_os.agents import AGENT_REGISTRY, TEAM_ORDER, by_team, route
@@ -31,7 +31,13 @@ from invisable_os.media.probes import probe_video
 from invisable_os.media.safe_area import Surface, VisualLayoutAgent, get_template
 from invisable_os.media.video_qc import RegionModel, VideoQualityGate, VideoSpec
 from invisable_os.models.content import ContentCandidate, ContentFormat, Platform, QueueStatus
-from invisable_os.models.departments import Partner, TagNetworkMember
+from invisable_os.models.departments import (
+    CommunityStory,
+    Partner,
+    Person,
+    RelationshipTouch,
+    TagNetworkMember,
+)
 from invisable_os.models.metrics import PerformanceSignal
 from invisable_os.models.scheduling import Channel, ScheduleSlot
 from invisable_os.scheduling import default_week
@@ -41,6 +47,7 @@ from invisable_os.services import (
     assemble_post,
     calendar,
     check_post,
+    consent_state,
     finish_post,
     gather_topics,
     produce_media,
@@ -410,6 +417,98 @@ def scan_opportunities(req: HarvestRequest) -> dict:
     for opp in found:
         repo.record_opportunity(opp)
     return {"count": len(found), "opportunities": [o.model_dump() for o in found]}
+
+
+# --- People & consent -------------------------------------------------------
+
+
+class ConsentRequest(BaseModel):
+    consent_status: str = Field(description="pending | approved | declined | expired")
+    voice_permission: bool | None = None
+    allowed_platforms: list[str] | None = None
+    allowed_content_types: list[str] | None = None
+    consent_expiry: str | None = None  # ISO date
+
+
+@router.get("/v1/people")
+def list_people() -> dict:
+    """Everyone the platform may feature, each with their live consent state."""
+    people = get_repository().list_people()
+    return {"people": [{**p, "consent": consent_state(p)} for p in people]}
+
+
+@router.post("/v1/people")
+def add_person(person: Person) -> dict:
+    return {"id": get_repository().add_person(person)}
+
+
+@router.get("/v1/people/{person_id}")
+def get_person(person_id: str) -> dict:
+    p = get_repository().get_person(person_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail="person not found")
+    return {**p, "consent": consent_state(p)}
+
+
+@router.post("/v1/people/{person_id}/consent")
+def set_person_consent(person_id: str, req: ConsentRequest) -> dict:
+    """Record/update a person's consent — the gate on ever featuring them."""
+    p = get_repository().set_consent(
+        person_id,
+        req.consent_status,
+        voice_permission=req.voice_permission,
+        allowed_platforms=req.allowed_platforms,
+        allowed_content_types=req.allowed_content_types,
+        consent_expiry=req.consent_expiry,
+    )
+    if p is None:
+        raise HTTPException(status_code=404, detail="person not found")
+    return {**p, "consent": consent_state(p)}
+
+
+# --- Relationship CRM (touches & follow-ups) --------------------------------
+
+
+@router.post("/v1/relationships/touch")
+def record_touch(touch: RelationshipTouch) -> dict:
+    """Log a contact with a partner or person, with an optional follow-up date."""
+    return {"id": get_repository().record_touch(touch)}
+
+
+@router.get("/v1/relationships/touches")
+def list_touches(partner_id: str | None = None, person_id: str | None = None) -> dict:
+    return {"touches": get_repository().list_touches(partner_id=partner_id, person_id=person_id)}
+
+
+@router.get("/v1/relationships/followups")
+def relationship_followups(on_or_before: str | None = None) -> dict:
+    """Relationships due a follow-up on/before a date (default today) — the daily nudge."""
+    from datetime import date
+
+    cutoff = on_or_before or date.today().isoformat()
+    due = get_repository().due_followups(cutoff)
+    return {"as_of": cutoff, "count": len(due), "followups": due}
+
+
+# --- Community stories (consent-gated) --------------------------------------
+
+
+@router.get("/v1/community/stories")
+def list_community_stories(status: str | None = None) -> dict:
+    return {"stories": get_repository().list_community_stories(status=status)}
+
+
+@router.post("/v1/community/stories")
+def add_community_story(story: CommunityStory) -> dict:
+    return {"id": get_repository().add_community_story(story)}
+
+
+@router.post("/v1/community/stories/{story_id}/consent")
+def set_story_consent(story_id: str, req: ConsentRequest) -> dict:
+    s = get_repository().set_story_consent(story_id, req.consent_status)
+    if s is None:
+        raise HTTPException(status_code=404, detail="story not found")
+    return s
 
 
 @router.post("/v1/mission/advise")

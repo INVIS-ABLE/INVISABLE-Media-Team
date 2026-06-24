@@ -4,6 +4,7 @@ These are the operational seams: turning a day's plan into a persisted approval
 queue, and driving approved items out to the publisher.
 """
 
+from invisable_os.services.consent import consent_state
 from invisable_os.services.dam import sync_post_to_dam
 from invisable_os.services.fact_check import (
     CREDIBILITY_HIERARCHY,
@@ -57,4 +58,5 @@ __all__ = [
     "swarm_stats",
     "gather_topics",
     "seed_default_sources",
+    "consent_state",
 ]
