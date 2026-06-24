@@ -57,6 +57,7 @@ from invisable_os.services import (
     check_post,
     consent_state,
     detect_decay,
+    evaluate_post,
     export_snapshot,
     failsafe_status,
     finish_post,
@@ -214,6 +215,24 @@ def newsroom(req: NewsroomRequest) -> dict:
         platform=req.platform,
         count=req.count,
         persist=req.persist,
+    )
+
+
+class EvaluationRequest(BaseModel):
+    text: str
+    sources: list[dict] | None = None
+    platform: Platform = Platform.INSTAGRAM
+    content_format: ContentFormat = ContentFormat.TEXT_POST
+
+
+@router.post("/v1/evaluate")
+def evaluate(req: EvaluationRequest) -> dict:
+    """Evaluation layer: one offline scorecard across every gate the platform owns."""
+    return evaluate_post(
+        req.text,
+        sources=req.sources,
+        platform=req.platform,
+        content_format=req.content_format,
     )
 
 
