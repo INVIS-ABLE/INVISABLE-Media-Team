@@ -39,8 +39,11 @@ from invisable_os.services import (
     check_post,
     produce_media,
     publish_due,
+    reserve_health,
     run_and_queue_daily,
     schedule_next,
+    select_next,
+    stock_approved,
 )
 from invisable_os.store import get_repository
 
@@ -553,3 +556,37 @@ def factcheck(req: FactCheckRequest) -> dict:
     repo = get_repository()
     sources = [s for sid in req.source_ids if (s := repo.get_source(sid))]
     return check_post(req.text, sources).as_dict()
+
+
+# --- Content War Chest (the reserve) ----------------------------------------
+
+
+class WarChestSelectRequest(BaseModel):
+    platform: str | None = None
+    category: str | None = None
+    mark_used: bool = True
+
+
+@router.get("/v1/warchest")
+def warchest_health() -> dict:
+    """Reserve level, tier, recommended cadence and category spread."""
+    return reserve_health()
+
+
+@router.get("/v1/warchest/items")
+def warchest_items(category: str | None = None, reserve_status: str | None = "ready") -> dict:
+    """List reserve items, optionally filtered by category / reserve status."""
+    items = get_repository().list_war_chest(category=category, reserve_status=reserve_status)
+    return {"items": items}
+
+
+@router.post("/v1/warchest/stock")
+def warchest_stock() -> dict:
+    """Stock all approved queue items into the War Chest (idempotent)."""
+    return stock_approved()
+
+
+@router.post("/v1/warchest/select")
+def warchest_select(req: WarChestSelectRequest) -> dict:
+    """Draw the best non-repetitive ready item for the next slot, and mark it used."""
+    return select_next(platform=req.platform, category=req.category, mark_used=req.mark_used)

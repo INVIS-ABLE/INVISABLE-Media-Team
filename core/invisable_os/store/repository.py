@@ -34,6 +34,7 @@ from invisable_os.store.models import (
     SourceRow,
     SubtitleRow,
     TagMemberRow,
+    WarChestItemRow,
 )
 
 
@@ -665,6 +666,94 @@ class Repository:
             if row is None:
                 return None
             row.fact_checked_status = status
+            return row.as_dict()
+
+    # --- Content War Chest --------------------------------------------------
+
+    def add_war_chest_item(self, item: dict) -> str:
+        """Stock an approved asset into the reserve. ``item`` is a plain dict."""
+        row_id = item.get("id") or uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                WarChestItemRow(
+                    id=row_id,
+                    queue_item_id=item.get("queue_item_id", ""),
+                    candidate_id=item.get("candidate_id", ""),
+                    title=item.get("title", ""),
+                    category=item.get("category", "evergreen"),
+                    platform=item.get("platform", ""),
+                    pillar=item.get("pillar", ""),
+                    evergreen=item.get("evergreen", False),
+                    reserve_status=item.get("reserve_status", "ready"),
+                    quality_score=item.get("quality_score", 0.0),
+                    mission_score=item.get("mission_score", 0.0),
+                    humour_score=item.get("humour_score", 0.0),
+                    risk_score=item.get("risk_score", 0.0),
+                    freshness_score=item.get("freshness_score", 1.0),
+                    tags=item.get("tags", []),
+                    payload=item.get("payload", {}),
+                    expiry_date=item.get("expiry_date"),
+                    notes=item.get("notes", ""),
+                )
+            )
+        return row_id
+
+    def war_chest_has_queue_item(self, queue_item_id: str) -> bool:
+        """Whether a queue item is already stocked (so stocking is idempotent)."""
+        with session_scope() as s:
+            stmt = select(WarChestItemRow).where(
+                WarChestItemRow.queue_item_id == queue_item_id
+            )
+            return s.scalars(stmt).first() is not None
+
+    def list_war_chest(self, category: str | None = None, reserve_status: str | None = None,
+                       limit: int = 500) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(WarChestItemRow)
+            if category:
+                stmt = stmt.where(WarChestItemRow.category == category)
+            if reserve_status:
+                stmt = stmt.where(WarChestItemRow.reserve_status == reserve_status)
+            stmt = stmt.order_by(WarChestItemRow.created_at.desc()).limit(limit)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def get_war_chest_item(self, item_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(WarChestItemRow, item_id)
+            return row.as_dict() if row else None
+
+    def war_chest_counts(self) -> dict[str, int]:
+        """Reserve counts overall, by status, and by category."""
+        with session_scope() as s:
+            by_status: dict[str, int] = {}
+            by_category: dict[str, int] = {}
+            ready = 0
+            for row in s.scalars(select(WarChestItemRow)):
+                by_status[row.reserve_status] = by_status.get(row.reserve_status, 0) + 1
+                if row.reserve_status == "ready":
+                    ready += 1
+                    by_category[row.category] = by_category.get(row.category, 0) + 1
+            return {"ready": ready, "by_status": by_status, "by_category": by_category}
+
+    def update_war_chest_item(self, item_id: str, **fields) -> dict | None:
+        with session_scope() as s:
+            row = s.get(WarChestItemRow, item_id)
+            if row is None:
+                return None
+            for k, v in fields.items():
+                if hasattr(row, k):
+                    setattr(row, k, v)
+            return row.as_dict()
+
+    def mark_war_chest_used(self, item_id: str) -> dict | None:
+        """Mark a reserve item as used: stamp last_used_at and bump reuse_count."""
+        with session_scope() as s:
+            row = s.get(WarChestItemRow, item_id)
+            if row is None:
+                return None
+            row.reserve_status = "used"
+            row.last_used_at = _now()
+            row.reuse_count = (row.reuse_count or 0) + 1
             return row.as_dict()
 
 
