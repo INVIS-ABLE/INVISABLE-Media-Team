@@ -214,10 +214,49 @@ These are served by the core (`core/invisable_os/api/desktop_routes.py`) and gat
 
 Dashboard · Accounts · Content Factory · Warchest · Approval Queue · Scheduled Posts ·
 Published Posts · Rejected Posts · Story Queue · Reels Queue · Render Jobs · Worker
-Status · Logs · Settings.
+Status · **Platform Health** · Logs · Settings.
 
-Top bar: server / Cloudflare / LAN / API / worker / emergency-pause status, plus
-pending jobs, failed jobs, posts scheduled today, and items to review.
+Top bar: server / Cloudflare / LAN / API / worker / emergency-pause status and the
+Compliance **Risk** level, plus pending jobs, failed jobs, posts scheduled today,
+items to review, posting **Mode**, and account **Health**.
+
+---
+
+## Platform Compliance Watchdog (Platform Health)
+
+A safety agent that keeps the accounts alive, trusted, compliant and human-led. **It
+only ever monitors, warns, pauses and downgrades — it never performs or bypasses any
+platform action** (no auto-follow/like/DM, no CAPTCHA/login/security bypass, no spam).
+If growth conflicts with account safety, safety wins.
+
+The **Platform Health** page shows the account health score, current posting mode and
+its limits, risk level, every compliance warning with a recommended action, shadowban
+warning signals, reach/engagement trends, and the recent platform-event feed.
+
+**Posting modes** (daily limits, auto-enforced):
+
+| Mode | Posts/day | Notes |
+| ---- | --------- | ----- |
+| Introduction | 1–3 | all manual approval, no auto comments/reposts |
+| Modest Growth | 3–6 | story pushes; comments drafted for approval only |
+| Active Influencer | 6–12 | trend reactions; strict duplicate checks |
+| Career | 12–20 | only when account health is strong |
+| Manual Only | 0 | automation off; Stephen posts by hand |
+
+When risk rises the Watchdog **forces a downgrade** (Career → Active → Modest →
+Introduction → Manual Only) and pauses automation; on CRITICAL it stops posting.
+
+**Risk levels**: LOW continue · MEDIUM warn + review · HIGH pause automation + manual
+approval · CRITICAL stop posting + emergency.
+
+**Emergency buttons** (each only *stops* things): Pause All Automation · Manual Mode
+Only · Stop Comments · Stop Reposts · Stop Story Pushes · Stop Scheduling · Clear
+Today's Queue · Account Cooldown Mode.
+
+Integrations feed safety events to `POST /api/compliance/events` (warnings, failed/
+removed posts, API errors, login/security prompts, reach/engagement drops, blocked
+comments). The Watchdog reads them via `GET /api/compliance/health`; `POST
+/api/compliance/evaluate` runs it and enforces the outcome.
 
 ---
 

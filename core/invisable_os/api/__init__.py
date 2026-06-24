@@ -1,6 +1,7 @@
 """HTTP API surface for INVISABLE OS."""
 
 from invisable_os.api.audience_routes import audience_router
+from invisable_os.api.compliance_routes import compliance_router
 from invisable_os.api.desktop_routes import api_router
 from invisable_os.api.remix_routes import remix_router
 from invisable_os.api.routes import router
@@ -14,5 +15,8 @@ router.include_router(audience_router)
 
 # The desktop apps (Command Centre + Studio Worker) talk to the stable /api/* surface.
 router.include_router(api_router)
+
+# Platform Compliance Watchdog — the Platform Health page + emergency controls.
+router.include_router(compliance_router)
 
 __all__ = ["router"]

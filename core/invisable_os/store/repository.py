@@ -26,6 +26,7 @@ from invisable_os.store.models import (
     BotOutputRow,
     ChannelRow,
     CommunityStoryRow,
+    ComplianceEventRow,
     ExtractedHookRow,
     FounderRecognitionRow,
     MediaAssetRow,
@@ -1173,6 +1174,52 @@ class Repository:
     def all_flags(self) -> dict[str, dict]:
         with session_scope() as s:
             return {r.key: (r.value or {}) for r in s.scalars(select(SystemFlagRow))}
+
+    # --- Compliance events (the Platform Compliance Watchdog's signal feed) --
+
+    def record_compliance_event(
+        self,
+        kind: str,
+        *,
+        platform: str = "",
+        severity: str = "medium",
+        detail: str = "",
+        source: str = "",
+    ) -> dict:
+        with session_scope() as s:
+            row = ComplianceEventRow(
+                id=uuid.uuid4().hex,
+                platform=platform,
+                kind=kind,
+                severity=severity,
+                detail=detail,
+                source=source,
+            )
+            s.add(row)
+            s.flush()
+            return row.as_dict()
+
+    def list_compliance_events(
+        self, *, since: datetime | None = None, limit: int = 100
+    ) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(ComplianceEventRow)
+            if since is not None:
+                stmt = stmt.where(ComplianceEventRow.created_at >= since)
+            stmt = stmt.order_by(ComplianceEventRow.created_at.desc()).limit(limit)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def resolve_compliance_events(self, ids: list[str]) -> int:
+        if not ids:
+            return 0
+        n = 0
+        with session_scope() as s:
+            for event_id in ids:
+                row = s.get(ComplianceEventRow, event_id)
+                if row is not None and not row.resolved:
+                    row.resolved = True
+                    n += 1
+        return n
 
 
 def _as_utc(dt: datetime) -> datetime:

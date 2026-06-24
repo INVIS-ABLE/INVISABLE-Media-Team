@@ -33,6 +33,7 @@ from invisable_os.guardrails import (
 )
 from invisable_os.guardrails.model_licensing import MODEL_LICENCES, licence_check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
+from invisable_os.media.export_gate import export_gate
 from invisable_os.media.probes import probe_video
 from invisable_os.media.safe_area import Surface, VisualLayoutAgent, get_template
 from invisable_os.media.video_qc import RegionModel, VideoQualityGate, VideoSpec
@@ -704,6 +705,17 @@ def place_caption(req: PlaceCaptionRequest) -> dict:
 def video_qc(spec: VideoSpec) -> dict:
     """Run the full pre-approval video quality gate over a structured clip spec."""
     return VideoQualityGate().check(spec).summary()
+
+
+@router.post("/v1/export/gate")
+def export_gate_check(spec: VideoSpec) -> dict:
+    """The export contract: one ``export_ready`` verdict folded into 7 categories.
+
+    Composes the video quality gate (audio clarity, caption timing, safe-zone,
+    face/object obstruction, text overlap, aspect ratio, copyright/risk) — the single
+    check every finished video must clear before it can be exported.
+    """
+    return export_gate(spec)
 
 
 class ProbeRequest(BaseModel):

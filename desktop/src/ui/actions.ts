@@ -197,6 +197,28 @@ export async function uploadFile(
   return null;
 }
 
+// --- Platform Compliance Watchdog -------------------------------------------
+
+export const complianceEmergency = (action: string) =>
+  run(`Emergency: ${action}`, async () =>
+    ok(action, await api("POST", "/api/compliance/emergency", { action })),
+  );
+
+export const setPostingMode = (mode: string) =>
+  run(`Set mode: ${mode}`, async () =>
+    ok("Set mode", await api("POST", "/api/compliance/mode", { mode })),
+  );
+
+export const evaluateCompliance = () =>
+  run("Run Watchdog evaluation", async () =>
+    ok("Evaluate", await api("POST", "/api/compliance/evaluate")),
+  );
+
+export const resetComplianceSwitch = (sw: string) =>
+  run(`Lift switch: ${sw}`, async () =>
+    ok("Reset", await api("POST", "/api/compliance/reset", { switch: sw })),
+  );
+
 // --- Accounts ---------------------------------------------------------------
 
 export const connectAccount = (platform: string) =>
