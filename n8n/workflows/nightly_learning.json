@@ -1,0 +1,47 @@
+{
+  "name": "INVISABLE OS — Nightly Learning (Metricool → Watchtower)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "40 23 * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every night 23:40",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/metrics/sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "metrics",
+      "name": "Sync metrics → Watchtower",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "Posts the day's platform metrics (from Metricool) into the Watchtower. This updates the learnings and the Founder Recognition Index, which feed back into tomorrow's scoring. Body is `{}` so the core pulls from Metricool; pass `{ \"signals\": [...] }` to ingest directly. Safe no-op until METRICOOL_API_TOKEN + METRICOOL_BLOG_ID are set.",
+        "height": 200,
+        "width": 340
+      },
+      "id": "note",
+      "name": "Learning loop",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 720, 220 ]
+    }
+  ],
+  "connections": {
+    "Every night 23:40": { "main": [ [ { "node": "Sync metrics → Watchtower", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}
