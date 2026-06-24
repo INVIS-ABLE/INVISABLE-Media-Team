@@ -39,18 +39,21 @@ from invisable_os.services import (
     assemble_post,
     calendar,
     check_post,
+    gather_topics,
     produce_media,
     publish_due,
     reserve_health,
     run_and_queue_daily,
     run_swarm_cycle,
     schedule_next,
+    seed_default_sources,
     select_next,
     stock_approved,
     swarm_stats,
     sync_metrics,
     sync_post_to_dam,
 )
+from invisable_os.services.swarm import _SCAN_TOPICS as _SWARM_SEED_TOPICS
 from invisable_os.store import get_repository
 
 router = APIRouter()
@@ -675,6 +678,7 @@ def warchest_select(req: WarChestSelectRequest) -> dict:
 
 class SwarmRunRequest(BaseModel):
     drafts_per_topic: int = Field(default=2, ge=1, le=20)
+    live_sources: bool = Field(default=True, description="Scan live source feeds (else seed pool).")
 
 
 @router.get("/v1/swarm/bots")
@@ -692,10 +696,23 @@ def swarm_statistics() -> dict:
 @router.post("/v1/swarm/run")
 def swarm_run(req: SwarmRunRequest) -> dict:
     """Run one swarm cycle: scan → generate → gate → stock. Reject-heavy by design."""
-    return run_swarm_cycle(drafts_per_topic=req.drafts_per_topic)
+    return run_swarm_cycle(drafts_per_topic=req.drafts_per_topic, live_sources=req.live_sources)
 
 
 @router.get("/v1/swarm/outputs")
 def swarm_outputs(cycle_id: str | None = None, bot_name: str | None = None) -> dict:
     """Recent per-bot output records (optionally filtered by cycle or bot)."""
     return {"outputs": get_repository().list_bot_outputs(cycle_id=cycle_id, bot_name=bot_name)}
+
+
+@router.get("/v1/swarm/topics")
+def swarm_topics(live: bool = True) -> dict:
+    """Preview the topics each scanner bot would feed this cycle (live → seed fallback)."""
+    topics = gather_topics(_SWARM_SEED_TOPICS, live=live)
+    return {"live": live, "topics": topics, "total": sum(len(v) for v in topics.values())}
+
+
+@router.post("/v1/swarm/sources/seed")
+def swarm_seed_sources() -> dict:
+    """Seed the starter set of credible UK-first feeds for the scanner bots."""
+    return {"added": seed_default_sources()}
