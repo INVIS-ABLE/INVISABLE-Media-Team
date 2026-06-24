@@ -178,6 +178,43 @@ views.values = async (root) => {
     </div>`;
 };
 
+views.integrations = async (root) => {
+  const s = await api("/v1/integrations");
+  const rows = Object.entries(s)
+    .map(([k, on]) => `<span class="badge ${on ? "good" : "bad"}">${esc(k)}: ${on ? "configured" : "off"}</span>`)
+    .join(" ");
+  root.innerHTML = `
+    <div class="row"><h2>Integrations</h2><div class="spacer"></div>
+      <button class="btn" id="msync">Run metrics sync</button>
+      <button class="btn ghost" id="damall">Sync published → DAM</button>
+    </div>
+    <div class="meta">${rows}</div>
+    <div class="muted" id="out" style="margin-top:12px">Metrics sync feeds the Watchtower (Founder Recognition Index). DAM sync pushes finished assets to ResourceSpace. Both run safely as dry-run / no-op until their keys are set.</div>`;
+  $("#msync", root).onclick = async (ev) => {
+    ev.target.disabled = true;
+    try {
+      const r = await api("/v1/metrics/sync", { method: "POST", body: JSON.stringify({}) });
+      $("#out", root).textContent = `Metrics: ingested ${r.ingested} signal(s) from ${r.source} · Founder Recognition Index ${r.founder_recognition_index}`;
+      toast(`Metrics synced (${r.source})`);
+    } catch (e) { toast("Failed: " + e.message); }
+    ev.target.disabled = false;
+  };
+  $("#damall", root).onclick = async (ev) => {
+    ev.target.disabled = true;
+    try {
+      const q = await api("/v1/queue?status=published");
+      let posts = 0, files = 0;
+      for (const it of (q.items || [])) {
+        const r = await api(`/v1/dam/sync/${it.id}`, { method: "POST" });
+        if (!r.error) { posts++; files += (r.count || 0); }
+      }
+      $("#out", root).textContent = `DAM: synced ${files} asset(s) across ${posts} published post(s).`;
+      toast(`DAM sync: ${files} asset(s)`);
+    } catch (e) { toast("Failed: " + e.message); }
+    ev.target.disabled = false;
+  };
+};
+
 // --- Remix department: Scanner Dashboard -----------------------------------
 const SCAN_LABEL = (m) => m.replace(/^scan_/, "").replace(/_/g, " ");
 const CREATE_LABEL = (m) => m.replace(/^create_/, "").replace(/_/g, " ");

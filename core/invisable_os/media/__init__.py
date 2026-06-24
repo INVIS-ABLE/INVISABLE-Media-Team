@@ -19,6 +19,11 @@ from invisable_os.media.probes import (
     probe_video,
 )
 from invisable_os.media.producer import MediaProducer
+from invisable_os.media.region_probe import (
+    OCRTextProbe,
+    OpenCVFaceProbe,
+    region_probes,
+)
 from invisable_os.media.safe_area import (
     Surface,
     VisualLayoutAgent,
@@ -43,4 +48,7 @@ __all__ = [
     "WhisperProbe",
     "default_probes",
     "probe_video",
+    "OpenCVFaceProbe",
+    "OCRTextProbe",
+    "region_probes",
 ]
