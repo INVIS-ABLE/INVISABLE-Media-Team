@@ -24,8 +24,11 @@ from invisable_os.engines.personality import CONTENT_PERSONALITY_MIX
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.guardrails import NEVER_DO, NEVER_OPTIMISE_FOR, OPTIMISE_FOR, check
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
-from invisable_os.models.content import ContentCandidate, ContentFormat, Platform
+from invisable_os.models.content import ContentCandidate, ContentFormat, Platform, QueueStatus
+from invisable_os.models.departments import Partner, TagNetworkMember
 from invisable_os.models.metrics import PerformanceSignal
+from invisable_os.services import publish_due, run_and_queue_daily
+from invisable_os.store import get_repository
 
 router = APIRouter()
 
@@ -133,6 +136,7 @@ def watchtower_ingest(req: WatchtowerRequest) -> dict:
 
 class DailyRequest(BaseModel):
     candidates_per_slot: int = Field(default=16, ge=4, le=200)
+    persist: bool = Field(default=False, description="Write the day into the approval queue.")
 
 
 class IdeaRequest(BaseModel):
@@ -145,10 +149,92 @@ class IdeaRequest(BaseModel):
 
 @router.post("/v1/daily/plan")
 def daily_plan(req: DailyRequest) -> dict:
-    """Run the whole agency for a day: 20 posts, each gated, scored, and spun."""
+    """Run the whole agency for a day: 20 posts, each gated, scored, and spun.
+
+    Set ``persist=true`` to write the day into the durable approval queue.
+    """
+    if req.persist:
+        return run_and_queue_daily(candidates_per_slot=req.candidates_per_slot)
     director = DailyContentDirector()
     plan = director.plan_day(candidates_per_slot=req.candidates_per_slot)
     return plan.summary()
+
+
+# --- Approval queue (the content lifecycle) ---------------------------------
+
+
+@router.get("/v1/queue")
+def list_queue(status: str | None = None) -> dict:
+    """List the approval queue, optionally filtered by lifecycle status."""
+    repo = get_repository()
+    return {"counts": repo.counts_by_status(), "items": repo.list_queue(status=status)}
+
+
+@router.get("/v1/queue/{item_id}")
+def get_queue_item(item_id: str) -> dict:
+    item = get_repository().get_queue_item(item_id)
+    return item or {"error": "not found", "id": item_id}
+
+
+@router.post("/v1/queue/{item_id}/{action}")
+def queue_action(item_id: str, action: str) -> dict:
+    """Move a queue item: approve | reject | schedule | publish."""
+    mapping = {
+        "approve": QueueStatus.APPROVED,
+        "reject": QueueStatus.REJECTED,
+        "schedule": QueueStatus.SCHEDULED,
+        "publish": QueueStatus.PUBLISHED,
+    }
+    target = mapping.get(action)
+    if target is None:
+        return {"error": f"unknown action '{action}'", "allowed": list(mapping)}
+    item = get_repository().transition(item_id, target)
+    return item or {"error": "not found", "id": item_id}
+
+
+@router.post("/v1/publish/run")
+def publish_run() -> dict:
+    """Take approved/scheduled items live (dry-run unless Postiz is configured)."""
+    return publish_due()
+
+
+# --- Relationship: tag network & partners -----------------------------------
+
+
+@router.get("/v1/tags")
+def list_tags() -> dict:
+    return {"members": [m.model_dump() for m in get_repository().list_tag_members()]}
+
+
+@router.post("/v1/tags")
+def add_tag(member: TagNetworkMember) -> dict:
+    member_id = get_repository().add_tag_member(member)
+    return {"id": member_id}
+
+
+@router.get("/v1/partners")
+def list_partners() -> dict:
+    return {"partners": get_repository().list_partners()}
+
+
+@router.post("/v1/partners")
+def add_partner(partner: Partner) -> dict:
+    return {"id": get_repository().add_partner(partner)}
+
+
+@router.get("/v1/opportunities")
+def list_opportunities() -> dict:
+    return {"opportunities": get_repository().list_opportunities()}
+
+
+@router.post("/v1/opportunities/scan")
+def scan_opportunities(req: HarvestRequest) -> dict:
+    """Scan for media/speaking/sponsorship opportunities and persist them."""
+    repo = get_repository()
+    found = IntelligenceHarvester().scan_opportunities(req.topics)
+    for opp in found:
+        repo.record_opportunity(opp)
+    return {"count": len(found), "opportunities": [o.model_dump() for o in found]}
 
 
 @router.post("/v1/mission/advise")

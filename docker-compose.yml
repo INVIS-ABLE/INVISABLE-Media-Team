@@ -25,6 +25,8 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
     ports:
       - "8080:8080"
+    volumes:
+      - ./data/core:/app/data        # local artifacts / SQLite fallback if DATABASE_URL is unset
     depends_on:
       - postgres
       - chroma

@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from invisable_os.brain import Memory, get_brain
+from invisable_os.engines.connectors import Connector, default_connectors
+from invisable_os.models.departments import Opportunity
 
 
 @dataclass
@@ -39,19 +41,42 @@ class Signal:
 class IntelligenceHarvester:
     """Turns public signals into abstracted, ethically-clean intelligence."""
 
-    def __init__(self) -> None:
+    def __init__(self, connectors: list[Connector] | None = None) -> None:
         self.brain = get_brain()
+        self.connectors = connectors if connectors is not None else default_connectors()
 
     def harvest(self, topics: list[str] | None = None) -> list[Signal]:
         """Return abstracted signals for the given topics.
 
-        With connectors configured this would query Feedly/Trends/Firecrawl and
-        *abstract* the results. Offline it returns illustrative signals so the rest of
-        the platform can operate end to end.
+        Queries any configured connectors (Feedly/Trends/Firecrawl) and *abstracts*
+        the results. When none are configured/reachable, it falls back to baseline
+        interest signals so the rest of the platform always has something to act on.
         """
         topics = topics or ["invisible illness", "chronic fatigue", "trades mental health"]
         signals: list[Signal] = []
+
+        # 1. Live connectors (abstracted signals only).
+        for connector in self.connectors:
+            try:
+                for raw in connector.fetch(topics):
+                    signals.append(
+                        Signal(
+                            topic=raw.get("topic", ""),
+                            kind=raw.get("kind", "trend"),
+                            summary=raw.get("summary", ""),
+                            source_type=raw.get("source_type", connector.name),
+                            score=float(raw.get("score", 0.5)),
+                            metadata={"abstracted": True, "connector": connector.name},
+                        )
+                    )
+            except Exception:  # noqa: BLE001 — a connector must never break the harvest
+                continue
+
+        # 2. Baseline interest signals so the platform always has direction.
+        covered = {s.topic for s in signals}
         for topic in topics:
+            if topic in covered:
+                continue
             signals.append(
                 Signal(
                     topic=topic,
@@ -67,6 +92,26 @@ class IntelligenceHarvester:
             )
         self.persist(signals)
         return signals
+
+    def scan_opportunities(self, topics: list[str] | None = None) -> list[Opportunity]:
+        """Surface media/speaking/sponsorship opportunities from the harvested signals.
+
+        Offline this proposes sensible, mission-aligned opportunity *types* to pursue;
+        with connectors it would attach concrete sources. Always abstracted.
+        """
+        signals = self.harvest(topics)
+        opportunities: list[Opportunity] = []
+        for s in signals[:5]:
+            opportunities.append(
+                Opportunity(
+                    kind="podcast",
+                    title=f"Podcasts covering '{s.topic}'",
+                    fit_score=round(min(1.0, s.score), 3),
+                    why=f"Active public interest in {s.topic} aligns with the mission.",
+                    suggested_action=f"Pitch a founder-led segment on {s.topic}.",
+                )
+            )
+        return opportunities
 
     def persist(self, signals: list[Signal]) -> int:
         """Store abstracted signals in the Brain. Returns count stored."""

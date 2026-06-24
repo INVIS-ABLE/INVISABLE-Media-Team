@@ -48,20 +48,35 @@ honest state of each piece:
 - ✅ Docs: departments, god-tier architecture, n8n workflow map, PWA layout, daily
   pipeline, agent library, install order.
 
+### Operational build (added)
+
+- ✅ **Persistence layer** (`store/`) — SQLAlchemy ORM + repository; SQLite by
+  default (zero services), Postgres via `DATABASE_URL`. App self-migrates on boot. Tested.
+- ✅ **Content lifecycle / approval queue** — durable queue items with status
+  (`pending_review` → `approved` → `scheduled` → `published`, plus
+  `needs_improvement` / `rejected`). API + CLI. Tested.
+- ✅ **Pipeline service** — `run_and_queue_daily` persists the day's 20 posts (with
+  scores, tags, flywheel assets) into the queue. Tested.
+- ✅ **Publishing layer** (`publish/`) — `Publisher` protocol, safe **dry-run**
+  default, Postiz adapter; scheduler publishes approved items + seeds a perf signal. Tested.
+- ✅ **Harvester connectors** (`connectors.py`) — Feedly / Google Trends / Firecrawl
+  adapters with graceful fallback; opportunity scanning persisted. Tested.
+- ✅ **Management CLI** (`invisable`) — migrate / serve / demo / plan / queue /
+  approve / publish / seed-tags.
+- ✅ **Operational API** — `/v1/daily/plan?persist`, `/v1/queue`, queue actions,
+  `/v1/publish/run`, `/v1/tags`, `/v1/partners`, `/v1/opportunities`.
+- ✅ **Docker** — core self-bootstraps the DB and serves via the CLI; Postgres driver
+  included. Runbook in [`OPERATIONS.md`](OPERATIONS.md).
+
 ## Next (clearly scoped extensions)
 
-- ⏳ **Live generation at volume** — wire Claude/Ollama prompts for hundreds of
-  daily candidates; add structured output parsing and an LLM-judge scoring pass on
-  top of the deterministic floor.
-- ⏳ **Persistence wiring** — connect the engines to the Postgres schema (currently
-  the API is stateless per-request; the schema and Brain are ready).
-- ⏳ **Harvester connectors** — Firecrawl / Crawl4AI / Feedly / Google Trends /
-  AnswerThePublic adapters behind `harvest()`.
+- ⏳ **Live generation at volume** — richer Claude/Ollama prompts + structured JSON
+  output parsing + an LLM-judge scoring pass on top of the deterministic floor.
 - ⏳ **Media pipeline** — ComfyUI/Flux image gen, ElevenLabs voice, Whisper
-  captions, OpenCut assembly, ResourceSpace asset library.
-- ⏳ **Publishing** — Postiz scheduling from the winners queue + per-platform
-  formatting.
-- ⏳ **Platform metrics ingestion** — real connectors feeding the Watchtower.
+  captions, OpenCut assembly, ResourceSpace asset library, wired to the flywheel.
+- ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
+- ⏳ **PWA front-end** — build the dashboard in [`PWA_DASHBOARD.md`](PWA_DASHBOARD.md)
+  against the now-operational API.
 - ⏳ **Founder Recognition dashboard** — surface the index and presence view over time.
 
 ## Guiding principle for every extension

@@ -85,3 +85,14 @@ class PublishDecision(StrEnum):
     HOLD = "hold"  # good, but not selected this cycle
     REVISE = "revise"  # promising but needs another improvement pass
     REJECT = "reject"  # failed a hard gate
+
+
+class QueueStatus(StrEnum):
+    """The lifecycle of a piece of content moving toward publication."""
+
+    PENDING_REVIEW = "pending_review"  # awaiting human approval
+    NEEDS_IMPROVEMENT = "needs_improvement"  # below the quality bar, send back
+    APPROVED = "approved"  # cleared for scheduling
+    SCHEDULED = "scheduled"  # handed to the scheduler/publisher
+    PUBLISHED = "published"  # live
+    REJECTED = "rejected"  # graveyard — the platform learns not to repeat it

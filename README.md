@@ -123,28 +123,42 @@ INVISABLE OS orchestrates a self-hostable, mostly open stack. See
 ## Quick start
 
 ```bash
-# 1. Configure
-cp .env.example .env        # fill in keys (the platform runs degraded but works without them)
+# 1. Configure (optional — the platform runs fully without any keys)
+cp .env.example .env
 
-# 2. Run the core API + tests locally (no Docker needed)
+# 2. Install + run the operational platform locally (no services needed)
 cd core
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                      # deterministic engine logic is fully tested
-uvicorn invisable_os.main:app --reload
+pytest                      # 56 deterministic tests
 
-# 3. Or bring up the whole stack
+invisable migrate           # create tables (local SQLite by default)
+invisable plan --persist    # run the day's 20 posts into the approval queue
+invisable queue             # review what's waiting
+invisable approve <id>      # approve an item
+invisable publish           # take it live (dry-run until Postiz is configured)
+invisable serve             # API at http://localhost:8080/docs
+
+# 3. Or bring up the whole stack (core self-migrates on boot)
 docker compose up -d core postgres chroma   # minimal
 docker compose up -d                         # full agency OS
 ```
 
-Then open the API docs at <http://localhost:8080/docs> and try a tournament:
+Run the entire platform once, end to end, offline:
 
 ```bash
-curl -s -X POST localhost:8080/v1/tournament/run \
-  -H 'content-type: application/json' \
-  -d '{"brief": "Explain that fatigue in invisible illness is not laziness", "platform": "instagram", "count": 24}' | jq
+invisable demo
 ```
+
+Or drive it over HTTP — plan a whole day straight into the approval queue:
+
+```bash
+curl -s -X POST localhost:8080/v1/daily/plan \
+  -H 'content-type: application/json' -d '{"persist": true}' | jq '.total, .total_assets'
+```
+
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full runbook (lifecycle, CLI,
+API, scheduling, and going live with Postgres + Postiz).
 
 ---
 

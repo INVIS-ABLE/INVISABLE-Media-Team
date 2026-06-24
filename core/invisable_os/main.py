@@ -22,6 +22,14 @@ def create_app() -> FastAPI:
     settings = get_settings()
     logging.basicConfig(level=settings.log_level)
 
+    # Self-bootstrap the database so the platform is operational on first boot.
+    try:
+        from invisable_os.store import init_db
+
+        init_db()
+    except Exception as exc:  # noqa: BLE001 — never block startup on the store
+        logging.getLogger(__name__).warning("DB init skipped: %s", exc)
+
     app = FastAPI(
         title="INVISABLE® AI Media Agency OS",
         version=__version__,
