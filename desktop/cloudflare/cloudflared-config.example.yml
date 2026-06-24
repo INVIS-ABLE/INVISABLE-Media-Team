@@ -1,0 +1,34 @@
+# cloudflared tunnel config for the INVISABLE® Media server.
+#
+# Goal: expose ONLY the media PWA/API at https://media.invisable.co.uk through a
+# Cloudflare Tunnel, and nothing else. Postgres, ChromaDB, n8n admin, Postiz admin,
+# and the internal worker ports are never given a public hostname here — they stay
+# on the LAN / docker network only.
+#
+# Install:
+#   1. cloudflared tunnel login
+#   2. cloudflared tunnel create invisable-media        # note the Tunnel UUID
+#   3. Put the UUID + credentials path below, and a DNS route:
+#        cloudflared tunnel route dns invisable-media media.invisable.co.uk
+#   4. Run as a service: cloudflared service install (or `cloudflared tunnel run`).
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+# Only one public ingress: the media app. Everything else returns 404.
+ingress:
+  - hostname: media.invisable.co.uk
+    service: http://localhost:8080
+    originRequest:
+      # The PWA dashboard lives at /app and the desktop API at /api on the core.
+      connectTimeout: 30s
+      noTLSVerify: false
+
+  # Catch-all: refuse anything that isn't the media hostname.
+  - service: http_status:404
+
+# DO NOT add ingress rules for:
+#   - postgres (5432)        - chromadb (8000)
+#   - n8n (5678)             - postiz (3000/4200)
+#   - comfyui (8188)         - any worker control port
+# These remain LAN-only / docker-internal and are never tunnelled.

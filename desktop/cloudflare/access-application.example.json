@@ -1,0 +1,38 @@
+{
+  "_comment": "Cloudflare Zero Trust Access — self-hosted application protecting the media PWA. Create via the Zero Trust dashboard (Access → Applications → Add → Self-hosted) or the API/Terraform. This JSON mirrors the POST /accounts/{account_id}/access/apps body.",
+
+  "name": "INVISABLE Media",
+  "domain": "media.invisable.co.uk",
+  "type": "self_hosted",
+  "session_duration": "24h",
+  "app_launcher_visible": true,
+  "auto_redirect_to_identity": false,
+
+  "allowed_idps": [],
+
+  "_policies_note": "Attach the two policies below (allow Stephen, then default-deny). Order matters: the allow is evaluated first; everything else falls through to the deny.",
+  "policies": [
+    {
+      "name": "Allow Stephen",
+      "decision": "allow",
+      "precedence": 1,
+      "include": [
+        { "email": { "email": "SteveTG10@outlook.com" } }
+      ],
+      "require": [
+        { "login_method": {} }
+      ],
+      "_options": "Add { \"email_domain\": { \"domain\": \"invisable.co.uk\" } } to include to allow the whole company; add Google/Microsoft as identity providers in Zero Trust → Settings → Authentication; turn on one-time PIN by enabling the One-time PIN login method."
+    },
+    {
+      "name": "Block everyone else",
+      "decision": "deny",
+      "precedence": 2,
+      "include": [
+        { "everyone": {} }
+      ]
+    }
+  ],
+
+  "_device_posture_later": "Once enrolled with WARP, add a require block referencing a device posture check (e.g. disk encryption / serial number) to the Allow policy."
+}
