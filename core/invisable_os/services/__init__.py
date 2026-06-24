@@ -12,6 +12,7 @@ from invisable_os.services.backup import (
     verify_snapshot,
 )
 from invisable_os.services.campaign import BigCampaign, launch_campaign
+from invisable_os.services.comment_war_room import triage_comment, triage_comments
 from invisable_os.services.consent import consent_state
 from invisable_os.services.dam import sync_post_to_dam
 from invisable_os.services.decay import DecayReport, detect_decay
@@ -76,6 +77,8 @@ __all__ = [
     "BigCampaign",
     "build_split",
     "format_leaderboard",
+    "triage_comment",
+    "triage_comments",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",

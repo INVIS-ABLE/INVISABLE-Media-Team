@@ -79,6 +79,7 @@ from invisable_os.services import (
     sync_metrics,
     sync_post_to_dam,
     theme_alerts,
+    triage_comments,
 )
 from invisable_os.services.swarm import _SCAN_TOPICS as _SWARM_SEED_TOPICS
 from invisable_os.store import get_repository
@@ -175,6 +176,17 @@ def draft_comment(req: CommentRequest) -> dict:
     engine = CommunityEngagement()
     draft = engine.draft_comment(req.post_summary, platform=req.platform, creator=req.creator)
     return {"text": draft.text, "approved": draft.approved, "verdict": draft.verdict.model_dump()}
+
+
+class CommentWarRoomRequest(BaseModel):
+    comments: list[str]
+    platform: Platform = Platform.INSTAGRAM
+
+
+@router.post("/v1/engagement/war-room")
+def comment_war_room(req: CommentWarRoomRequest) -> dict:
+    """Comment War Room: triage incoming comments and draft safe replies."""
+    return triage_comments(req.comments, platform=req.platform)
 
 
 @router.post("/v1/harvest")
