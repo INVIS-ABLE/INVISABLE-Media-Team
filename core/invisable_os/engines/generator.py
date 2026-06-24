@@ -41,13 +41,23 @@ class Generator:
         platform: Platform,
         count: int = 24,
         content_format: ContentFormat = ContentFormat.SHORT_VIDEO,
+        angle: str | None = None,
     ) -> list[ContentCandidate]:
-        """Return ``count`` candidate pieces for ``brief``."""
+        """Return ``count`` candidate pieces for ``brief``.
+
+        If ``angle`` is given, every candidate is generated in that angle (used by the
+        Daily Director so each slot produces content matching its editorial intent);
+        otherwise the generator rotates through all angles.
+        """
         candidates: list[ContentCandidate] = []
         cultural_context = self.cultural.context_for(brief)
+        angle_map = dict(ANGLES)
 
         for i in range(count):
-            angle_key, angle_desc = ANGLES[i % len(ANGLES)]
+            if angle and angle in angle_map:
+                angle_key, angle_desc = angle, angle_map[angle]
+            else:
+                angle_key, angle_desc = ANGLES[i % len(ANGLES)]
             founder_centred = angle_key == "founder_voice"
             candidate = self._one(
                 brief=brief,
