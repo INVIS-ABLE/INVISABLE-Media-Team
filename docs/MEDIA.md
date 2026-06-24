@@ -63,3 +63,32 @@ COMFYUI_BASE_URL=http://localhost:8188 ELEVENLABS_API_KEY=… invisable produce 
 Rendered files land under `data/assets/generated/<queue-item-id>/<backend>/…` and are
 recorded in the media library (`GET /v1/media?item_id=…`, or the dashboard's **Media**
 tab).
+
+## Assembly — the finished cutdown (FFmpeg)
+
+`media/assembly.py` is the programmatic counterpart to OpenCut: it stitches a post's
+rendered **visual** (image or video) + **voiceover** (audio) + **captions** (SRT)
+into one finished `.mp4`.
+
+```
+assemble_post(item_id)
+  → pick the best rendered visual (a clip beats a still), the voiceover, the captions
+  → build an FFmpeg command (image → looped clip; audio mixed; subtitles burned in)
+  → run FFmpeg → write data/assets/generated/<id>/final/<id>.mp4
+  → record a `final_video` asset in the library
+```
+
+The FFmpeg command is built by a pure function (`build_command`) so it is unit-tested
+without the binary, and the runner is injectable. Assembly runs for real when FFmpeg
+is installed **and** the inputs are real files; otherwise it degrades to a dry-run
+plan — and a failing FFmpeg run never raises, it falls back to dry-run.
+
+```bash
+invisable produce <queue-item-id>     # render the parts
+invisable assemble <queue-item-id>    # stitch them into final/<id>.mp4
+```
+
+API: `POST /v1/media/assemble/{item_id}`.
+
+> The Remix department separately emits rights-gated FFmpeg *job specs*; this
+> assembler is the generic executor that turns rendered parts into a finished video.
