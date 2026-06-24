@@ -16,6 +16,7 @@ from invisable_os.services.metrics import sync_metrics
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
 from invisable_os.services.scheduler import publish_due, schedule_to_postiz
 from invisable_os.services.scheduling import calendar, schedule_next
+from invisable_os.services.source_scan import gather_topics, seed_default_sources
 from invisable_os.services.swarm import (
     SWARM_BOTS,
     AgentSwarm,
@@ -50,4 +51,6 @@ __all__ = [
     "SWARM_BOTS",
     "run_swarm_cycle",
     "swarm_stats",
+    "gather_topics",
+    "seed_default_sources",
 ]

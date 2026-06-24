@@ -98,6 +98,13 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional Authenticode signing — dormant until these repo secrets are set.
+          # Add a base64-encoded .pfx as WINDOWS_CERTIFICATE and its password as
+          # WINDOWS_CERTIFICATE_PASSWORD, and Tauri signs the installer automatically
+          # (removing the Windows SmartScreen "unknown publisher" warning). With the
+          # secrets unset, the build is simply unsigned — exactly as it is today.
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           projectPath: desktop
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version || 'desktop-v0.1.0' }}
