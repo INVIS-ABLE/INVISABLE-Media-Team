@@ -1,0 +1,13 @@
+{
+  "name": "INVISABLE® Media OS",
+  "short_name": "INVISABLE OS",
+  "description": "The operating system of the INVISABLE® movement — generate, gate, schedule and publish content.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

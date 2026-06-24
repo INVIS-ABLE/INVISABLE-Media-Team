@@ -90,8 +90,9 @@ honest state of each piece:
 - ⏳ **Real media rendering** — wire the ComfyUI graph submissions + ElevenLabs/
   Whisper calls behind the now-stubbed renderers; OpenCut assembly; ResourceSpace library.
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.
-- ⏳ **PWA front-end** — build the dashboard in [`PWA_DASHBOARD.md`](PWA_DASHBOARD.md)
-  against the now-operational API (queue, calendar, media library all exist).
+- ✅ **PWA front-end** — installable dashboard (`core/invisable_os/web/`) served at
+  `/app`: Today / Queue / Calendar / Media / Agents / Values, wired to the API.
+  Tested. (Richer screens in [`PWA_DASHBOARD.md`](PWA_DASHBOARD.md) are next.)
 - ⏳ **Founder Recognition dashboard** — surface the index and presence view over time.
 
 ## Guiding principle for every extension

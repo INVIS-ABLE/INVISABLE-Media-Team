@@ -4,6 +4,14 @@ A single installable progressive web app (phone · iPad · PC · browser), talki
 to the `core` API. It is the founder's cockpit: approve, regenerate, schedule, and
 see the whole org at a glance.
 
+> **Built and shipped.** A dependency-free PWA lives in
+> [`core/invisable_os/web/`](../core/invisable_os/web/) and is served by the API at
+> **`/app`** (run `invisable serve`, open <http://localhost:8080/app>). It is
+> installable (manifest + service worker, offline app-shell) and implements the
+> Today / Queue / Calendar / Media / Agents / Values screens against the endpoints
+> below. The richer screens in this document are the forward design; what's built
+> today is the working core of it.
+
 ## Navigation (left rail)
 
 ```

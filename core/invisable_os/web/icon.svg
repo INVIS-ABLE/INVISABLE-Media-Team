@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="INVISABLE">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ea8fe"/>
+      <stop offset="1" stop-color="#c79bff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0b1020"/>
+  <!-- an 'eye, unseen' mark: an eye outline with a strike, for invisible illness -->
+  <path d="M64 256c54-86 118-128 192-128s138 42 192 128c-54 86-118 128-192 128S118 342 64 256Z"
+        fill="none" stroke="url(#g)" stroke-width="26" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="52" fill="url(#g)"/>
+  <line x1="120" y1="392" x2="392" y2="120" stroke="#0b1020" stroke-width="46" stroke-linecap="round"/>
+  <line x1="120" y1="392" x2="392" y2="120" stroke="url(#g)" stroke-width="22" stroke-linecap="round"/>
+</svg>

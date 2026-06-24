@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>INVISABLE OS</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <strong>INVISABLE</strong><span class="reg">®</span>
+      <span class="sub">Media OS</span>
+    </div>
+    <div class="health" id="health">connecting…</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="today" class="active">Today</button>
+    <button data-view="queue">Queue</button>
+    <button data-view="calendar">Calendar</button>
+    <button data-view="media">Media</button>
+    <button data-view="agents">Agents</button>
+    <button data-view="values">Values</button>
+  </nav>
+
+  <main id="view" class="view">
+    <div class="loading">Loading…</div>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

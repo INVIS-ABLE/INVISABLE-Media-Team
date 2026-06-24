@@ -40,6 +40,9 @@ invisable = "invisable_os.cli:main"
 where = ["."]
 include = ["invisable_os*"]
 
+[tool.setuptools.package-data]
+invisable_os = ["web/*", "web/**/*"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

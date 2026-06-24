@@ -137,7 +137,7 @@ invisable plan --persist    # run the day's 20 posts into the approval queue
 invisable queue             # review what's waiting
 invisable approve <id>      # approve an item
 invisable publish           # take it live (dry-run until Postiz is configured)
-invisable serve             # API at http://localhost:8080/docs
+invisable serve             # dashboard at http://localhost:8080/app · API docs at /docs
 
 # 3. Or bring up the whole stack (core self-migrates on boot)
 docker compose up -d core postgres chroma   # minimal
