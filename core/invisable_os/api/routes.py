@@ -59,6 +59,7 @@ from invisable_os.services import (
     detect_decay,
     export_snapshot,
     failsafe_status,
+    fallback_status,
     finish_post,
     format_leaderboard,
     gather_topics,
@@ -863,6 +864,12 @@ def split_leaderboard(metric: str | None = None, min_samples: int = 3) -> dict:
 def failsafe() -> dict:
     """What is recoverable right now, and which fallback chains stand ready."""
     return failsafe_status()
+
+
+@router.get("/v1/fallback/status")
+def fallback() -> dict:
+    """Voice + posting fallback chains: what's available and which link is selected."""
+    return fallback_status()
 
 
 @router.get("/v1/backup/export")

@@ -22,6 +22,11 @@ from invisable_os.services.fact_check import (
     credibility,
     is_fact_led,
 )
+from invisable_os.services.fallback import (
+    fallback_status,
+    select_posting,
+    select_voice,
+)
 from invisable_os.services.humanise import humanise, humanness_score
 from invisable_os.services.insights import theme_alerts
 from invisable_os.services.media import assemble_post, finish_post, produce_media
@@ -84,6 +89,9 @@ __all__ = [
     "newsroom_brief",
     "humanise",
     "humanness_score",
+    "select_voice",
+    "select_posting",
+    "fallback_status",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
