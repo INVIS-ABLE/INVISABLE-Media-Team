@@ -242,6 +242,34 @@ def _assemble(args) -> int:
     return 0
 
 
+def _dam_sync(args) -> int:
+    from invisable_os.services import sync_post_to_dam
+    from invisable_os.store import init_db
+
+    init_db()
+    res = sync_post_to_dam(args.id)
+    if "error" in res:
+        print(res["error"], args.id)
+        return 1
+    print(f"✓ DAM sync [{res['backend']}] for {args.id[:8]}: {len(res['synced'])} asset(s)")
+    for s in res["synced"]:
+        print(f"    {s['kind']:14} → {s['url']}")
+    return 0
+
+
+def _metrics_sync(_args) -> int:
+    from invisable_os.services import sync_metrics
+    from invisable_os.store import init_db
+
+    init_db()
+    res = sync_metrics()
+    print(f"✓ metrics sync [{res['source']}]: ingested {res['ingested']} signal(s)")
+    print(f"    Founder Recognition Index: {res['founder_recognition_index']}")
+    for learning in res["learnings"]:
+        print(f"    learned: {learning}")
+    return 0
+
+
 def _seed_tags(_args) -> int:
     from invisable_os.models.departments import TagNetworkMember
     from invisable_os.store import get_repository, init_db
@@ -303,6 +331,13 @@ def main(argv: list[str] | None = None) -> int:
     p_assemble = sub.add_parser("assemble", help="stitch a post's assets into a final video")
     p_assemble.add_argument("id")
     p_assemble.set_defaults(func=_assemble)
+
+    p_dam = sub.add_parser("dam-sync", help="push a post's assets into ResourceSpace")
+    p_dam.add_argument("id")
+    p_dam.set_defaults(func=_dam_sync)
+    sub.add_parser("metrics-sync", help="pull Metricool metrics into the Watchtower").set_defaults(
+        func=_metrics_sync
+    )
 
     p_scan = sub.add_parser("scan", help="run a Remix scanner mode (e.g. scan_tool_theft)")
     p_scan.add_argument("mode", help="a scan_* ContentMode")
