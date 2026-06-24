@@ -57,6 +57,7 @@ The platform is composed of cooperating engines, each a real module in
 | **Cultural Intelligence Engine** | Understand British culture, humour, trades culture, football culture, and live social trends. |
 | **Intelligence Harvester** | Monitor *public* information sources, trend signals, creator content, and emerging opportunities. |
 | **Founder Engine** | Keep founder presence at ~80% of published content and grow founder recognition. |
+| **Remix, Parody & Trend Intelligence Engine** | Scan culture & trends, index pop-culture safely, and create *original* parody/reaction/voiceover/meme content — a rights-safe remix studio, never a "steal and repost" machine. |
 | **INVISABLE_BRAIN** | Shared long-term memory (vector + structured) that every engine learns from. |
 
 See [`docs/ENGINES.md`](docs/ENGINES.md) for the detailed design of each.
@@ -73,9 +74,10 @@ engines above sit:
 | 🎬 **Production** | **Content Flywheel** — one idea → TikTok, Reel, caption, quote card, carousel, story poll, comment angle + a future idea. |
 | ⚙️ **Automation** | **Daily Output System** — produces the day's 20 posts (~140 assets), each gated, mission-scored, quality-checked, and spun. |
 | 🤝 **Relationship** | Fixed Tag Network (approved-only tagging), Partner CRM, People & consent. |
+| 🎭 **Remix, Parody & Trend Intelligence** | Scanner + remix brain + rights database + parody engine. Analyses/parodies/transforms trends into original content; a rights filter (8 statuses) blocks reuploading others' videos as-is. See [`docs/REMIX_ENGINE.md`](docs/REMIX_ENGINE.md). |
 | 🕵️ **Intelligence / 📚 Knowledge / 🎤 PR** | Competitor & opportunity scanning, NHS/benefits & construction knowledge, journalist/press tooling. |
 
-38 specialist **agents** ([`docs/AGENT_LIBRARY.md`](docs/AGENT_LIBRARY.md)) carry the
+45 specialist **agents** ([`docs/AGENT_LIBRARY.md`](docs/AGENT_LIBRARY.md)) carry the
 guardrails into every call. See [`docs/DEPARTMENTS.md`](docs/DEPARTMENTS.md),
 [`docs/GODTIER_ARCHITECTURE.md`](docs/GODTIER_ARCHITECTURE.md),
 [`docs/DAILY_PIPELINE.md`](docs/DAILY_PIPELINE.md),
@@ -179,9 +181,9 @@ schedulers we studied (and their licences).
 .
 ├── core/                     # The INVISABLE OS application (Python / FastAPI)
 │   └── invisable_os/
-│       ├── engines/          # Tournament, Watchtower, Cultural, Harvester, Founder
+│       ├── engines/          # Tournament, Watchtower, Cultural, Harvester, Founder, Remix
 │       ├── brain/            # INVISABLE_BRAIN shared memory
-│       ├── guardrails/       # The Prime Directive, encoded
+│       ├── guardrails/       # The Prime Directive + the rights filter, encoded
 │       ├── llm/              # Claude + Ollama clients (degrade gracefully)
 │       ├── models/           # Domain models (content, scores, metrics)
 │       └── api/              # HTTP surface

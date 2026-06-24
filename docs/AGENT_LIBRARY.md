@@ -1,6 +1,6 @@
 # Agent Library
 
-38 specialist agents across the departments. The **canonical source** is
+45 specialist agents across the departments. The **canonical source** is
 [`core/invisable_os/agents/registry.py`](../core/invisable_os/agents/registry.py) —
 it is real, callable code: `GET /v1/agents` lists them and `GET /v1/agents/route?task=…`
 routes a task to the best-matched specialists.
@@ -70,6 +70,15 @@ travel with **every** call — an agent cannot be prompted out of the values.
 - **Compliance / Sensitivity Checker** — Check for ableism, hate, harassment, misinformation and policy risk.
 - **Mission Alignment Agent** — Score every idea on awareness/community/fundraising/partner/long-term impact.
 - **Quality Control Agent** — Score the 11 quality dimensions and send anything below bar back to improve.
+
+### Remix, Parody & Trend Intelligence
+- **Trend Scanner Agent** — Scan public sources and abstract them into clean trend signals — never copies.
+- **Rights & Copyright Officer** — Classify every media item's rights status and block reuse of anything reference-only or unlicensed.
+- **Parody Writer** — Write original, transformative parody inspired by a trend — never a copy, never punching down.
+- **Reaction Script Writer** — Write reaction/commentary scripts and duet/stitch ideas where platform rules allow.
+- **Voiceover Remix Agent** — Voiceover scripts over owned/licensed footage; spec the ElevenLabs + subtitle + FFmpeg job.
+- **Pop Culture Curator** — Maintain the film/TV/meme/phrase index with paraphrase-safe versions and copyright risk.
+- **Subtitle & Transcription Agent** — Whisper/auto-subtitle transcription, hook extraction, burned-in captions.
 
 ## Using an agent
 

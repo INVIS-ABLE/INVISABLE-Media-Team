@@ -274,3 +274,157 @@ CREATE TABLE IF NOT EXISTS risk_flag (
     resolved     BOOLEAN NOT NULL DEFAULT FALSE,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ============================================================================
+-- Remix, Parody & Trend Intelligence department
+--
+-- The scanner indexes culture and trends; the rights system gates everything
+-- that could become footage. CORE RULE: the system must never automatically
+-- download and reupload other people's videos as-is. Only the usable rights
+-- statuses (owned, licensed, public_domain, creative_commons,
+-- user_submitted_consent, platform_duet_stitch) may enter video assembly;
+-- reference_only and blocked never can.
+-- ============================================================================
+
+-- --- Scanner sources (feeds the scanner monitors) ---------------------------
+CREATE TABLE IF NOT EXISTS scanner_sources (
+    id             TEXT PRIMARY KEY,
+    name           TEXT NOT NULL,
+    type           TEXT NOT NULL DEFAULT 'rss',   -- rss | trends | forum | search | research
+    url            TEXT NOT NULL DEFAULT '',
+    topic_area     TEXT NOT NULL DEFAULT '',
+    platform       TEXT NOT NULL DEFAULT '',
+    scan_frequency TEXT NOT NULL DEFAULT 'daily',
+    enabled        BOOLEAN NOT NULL DEFAULT TRUE,
+    notes          TEXT NOT NULL DEFAULT '',
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_scanner_sources_topic ON scanner_sources (topic_area);
+
+-- --- Scanned items / reference inbox (abstracted, never raw copies) ----------
+CREATE TABLE IF NOT EXISTS scanned_items (
+    id                       TEXT PRIMARY KEY,
+    source_id                TEXT,
+    url                      TEXT NOT NULL DEFAULT '',
+    title                    TEXT NOT NULL,
+    creator                  TEXT NOT NULL DEFAULT '',
+    platform                 TEXT NOT NULL DEFAULT '',
+    summary                  TEXT NOT NULL DEFAULT '',
+    transcript               TEXT NOT NULL DEFAULT '',
+    topic_tags               TEXT[] NOT NULL DEFAULT '{}',
+    trend_score              REAL NOT NULL DEFAULT 0,
+    humour_score             REAL NOT NULL DEFAULT 0,
+    construction_score       REAL NOT NULL DEFAULT 0,
+    invisible_illness_score  REAL NOT NULL DEFAULT 0,
+    sponsor_score            REAL NOT NULL DEFAULT 0,
+    risk_score               REAL NOT NULL DEFAULT 0,
+    rights_status            TEXT NOT NULL DEFAULT 'reference_only'
+                               CHECK (rights_status IN ('owned','licensed','public_domain',
+                                 'creative_commons','user_submitted_consent',
+                                 'platform_duet_stitch','reference_only','blocked')),
+    status                   TEXT NOT NULL DEFAULT 'new',
+    date_found               TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_scanned_items_status ON scanned_items (status);
+CREATE INDEX IF NOT EXISTS idx_scanned_items_rights ON scanned_items (rights_status);
+
+-- --- Media assets (rights manager) ------------------------------------------
+CREATE TABLE IF NOT EXISTS media_assets (
+    id                TEXT PRIMARY KEY,
+    file_path         TEXT NOT NULL DEFAULT '',
+    source_url        TEXT NOT NULL DEFAULT '',
+    title             TEXT NOT NULL DEFAULT '',
+    asset_type        TEXT NOT NULL DEFAULT 'video',  -- video | audio | image | voice | broll
+    owner             TEXT NOT NULL DEFAULT '',
+    rights_status     TEXT NOT NULL DEFAULT 'owned'
+                        CHECK (rights_status IN ('owned','licensed','public_domain',
+                          'creative_commons','user_submitted_consent',
+                          'platform_duet_stitch','reference_only','blocked')),
+    licence_notes     TEXT NOT NULL DEFAULT '',
+    consent_id        TEXT NOT NULL DEFAULT '',
+    expiry_date       TEXT,
+    allowed_platforms TEXT[] NOT NULL DEFAULT '{}',
+    allowed_uses      TEXT[] NOT NULL DEFAULT '{}',
+    blocked_uses      TEXT[] NOT NULL DEFAULT '{}',
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_media_assets_rights ON media_assets (rights_status);
+
+-- --- Pop-culture references (prefer paraphrase-safe over exact quotes) -------
+CREATE TABLE IF NOT EXISTS pop_culture_references (
+    id                        TEXT PRIMARY KEY,
+    title                     TEXT NOT NULL,
+    source_type               TEXT NOT NULL DEFAULT 'film',
+    reference_description      TEXT NOT NULL DEFAULT '',
+    exact_quote               TEXT NOT NULL DEFAULT '',
+    paraphrase_safe_version   TEXT NOT NULL DEFAULT '',
+    tone                      TEXT NOT NULL DEFAULT '',
+    humour_style              TEXT NOT NULL DEFAULT '',
+    copyright_risk            TEXT NOT NULL DEFAULT 'medium'
+                                CHECK (copyright_risk IN ('none','low','medium','high')),
+    use_allowed               BOOLEAN NOT NULL DEFAULT TRUE,
+    suggested_invisable_angle TEXT NOT NULL DEFAULT '',
+    platforms                 TEXT[] NOT NULL DEFAULT '{}',
+    related_topics            TEXT[] NOT NULL DEFAULT '{}',
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- --- Meme formats (structure learned, content never copied) ------------------
+CREATE TABLE IF NOT EXISTS meme_formats (
+    id                   TEXT PRIMARY KEY,
+    format_name          TEXT NOT NULL,
+    description          TEXT NOT NULL DEFAULT '',
+    structure            TEXT NOT NULL DEFAULT '',
+    example_safe_version TEXT NOT NULL DEFAULT '',
+    platform             TEXT NOT NULL DEFAULT '',
+    humour_style         TEXT NOT NULL DEFAULT '',
+    risk_score           REAL NOT NULL DEFAULT 0,
+    related_topics       TEXT[] NOT NULL DEFAULT '{}',
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- --- Remix jobs (parody/reaction/voiceover moving toward approval) -----------
+CREATE TABLE IF NOT EXISTS remix_jobs (
+    id                  TEXT PRIMARY KEY,
+    input_topic         TEXT NOT NULL DEFAULT '',
+    reference_item_id   TEXT,
+    asset_id            TEXT,
+    output_type         TEXT NOT NULL DEFAULT 'parody',
+    mode                TEXT NOT NULL DEFAULT 'create_parody',
+    script              TEXT NOT NULL DEFAULT '',
+    voiceover_script    TEXT NOT NULL DEFAULT '',
+    caption             TEXT NOT NULL DEFAULT '',
+    hashtags            TEXT[] NOT NULL DEFAULT '{}',
+    tags                TEXT[] NOT NULL DEFAULT '{}',
+    platform            TEXT NOT NULL DEFAULT '',
+    rights_check_status TEXT NOT NULL DEFAULT 'pending',
+    brand_check_status  TEXT NOT NULL DEFAULT 'pending',
+    approval_status     TEXT NOT NULL DEFAULT 'pending_review',
+    risk_score          REAL NOT NULL DEFAULT 0,
+    pack                JSONB NOT NULL DEFAULT '{}',
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_remix_jobs_status ON remix_jobs (approval_status);
+
+-- --- Extracted hooks (from transcripts; adapted to original INVISABLE® lines) -
+CREATE TABLE IF NOT EXISTS extracted_hooks (
+    id                        TEXT PRIMARY KEY,
+    scanned_item_id           TEXT,
+    hook_text                 TEXT NOT NULL DEFAULT '',
+    hook_type                 TEXT NOT NULL DEFAULT '',
+    platform                  TEXT NOT NULL DEFAULT '',
+    strength_score            REAL NOT NULL DEFAULT 0,
+    adapted_invisable_version TEXT NOT NULL DEFAULT '',
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- --- Subtitles (Whisper → auto-subtitle → FFmpeg burn-in) -------------------
+CREATE TABLE IF NOT EXISTS subtitles (
+    id                TEXT PRIMARY KEY,
+    asset_id          TEXT,
+    transcript        TEXT NOT NULL DEFAULT '',
+    srt_path          TEXT NOT NULL DEFAULT '',
+    burned_video_path TEXT NOT NULL DEFAULT '',
+    language          TEXT NOT NULL DEFAULT 'en',
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);

@@ -19,6 +19,14 @@ from invisable_os.guardrails.policy import (
     OPTIMISE_FOR,
     RISK_CATEGORIES,
 )
+from invisable_os.guardrails.rights import (
+    RIGHTS_RULE,
+    RightsVerdict,
+    can_download,
+    can_reuse,
+    filter_usable,
+    reuse_check,
+)
 
 __all__ = [
     "check",
@@ -31,4 +39,10 @@ __all__ = [
     "NEVER_OPTIMISE_FOR",
     "OPTIMISE_FOR",
     "RISK_CATEGORIES",
+    "RIGHTS_RULE",
+    "RightsVerdict",
+    "can_download",
+    "can_reuse",
+    "filter_usable",
+    "reuse_check",
 ]

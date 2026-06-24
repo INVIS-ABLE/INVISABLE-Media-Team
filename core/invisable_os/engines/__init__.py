@@ -18,6 +18,14 @@ from invisable_os.engines.founder import FounderEngine
 from invisable_os.engines.harvester import IntelligenceHarvester
 from invisable_os.engines.mission import MissionEngine
 from invisable_os.engines.quality import QualityEngine
+from invisable_os.engines.remix import (
+    ParodyEngine,
+    PopCultureIndex,
+    RemixTrendEngine,
+    RightsManager,
+    TrendScanner,
+    VoiceoverEngine,
+)
 from invisable_os.engines.tagging import TagNetwork
 from invisable_os.engines.tournament import ContentTournamentEngine
 from invisable_os.engines.watchtower import AlgorithmWatchtower
@@ -34,4 +42,10 @@ __all__ = [
     "QualityEngine",
     "ContentFlywheel",
     "TagNetwork",
+    "RemixTrendEngine",
+    "TrendScanner",
+    "RightsManager",
+    "PopCultureIndex",
+    "ParodyEngine",
+    "VoiceoverEngine",
 ]
