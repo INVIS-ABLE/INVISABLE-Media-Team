@@ -215,6 +215,37 @@ views.integrations = async (root) => {
   };
 };
 
+views.recognition = async (root) => {
+  const d = await api("/v1/founder/recognition");
+  const hist = d.history || [];
+  // The index is 0..1; render a simple bar chart so it reads left-to-right over time.
+  const W = 640, H = 160, pad = 8;
+  const n = hist.length;
+  const bars = hist.map((p, i) => {
+    const bw = n ? (W - pad * 2) / n : 0;
+    const bh = Math.max(2, (p.index_value || 0) * (H - pad * 2));
+    const x = pad + i * bw;
+    const y = H - pad - bh;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="var(--founder)"><title>${esc((p.at || "").slice(0, 16))}: ${(p.index_value || 0).toFixed(3)}</title></rect>`;
+  }).join("");
+  const chart = n
+    ? `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)">${bars}</svg>`
+    : `<div class="muted">No recognition readings yet — run a metrics sync (Integrations) once real performance arrives.</div>`;
+  const latest = hist.length ? hist[hist.length - 1] : null;
+  const breakdown = latest
+    ? Object.entries(latest.breakdown || {}).sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `<li>${esc(k)}: ${v}</li>`).join("")
+    : "";
+  root.innerHTML = `
+    <div class="row"><h2>Founder Recognition</h2><div class="spacer"></div>
+      <span class="badge founder">latest ${(d.latest || 0).toFixed(3)}</span>
+      <span class="badge">${d.points || 0} reading(s)</span>
+    </div>
+    <div class="muted" style="margin-bottom:10px">Recognition is a consequence of impact — media mentions, podcast & speaking invitations, partner/sponsor enquiries, profile visits. Index 0–1, tracked over time.</div>
+    ${chart}
+    ${breakdown ? `<div class="card" style="margin-top:14px"><h3>Latest contributors</h3><ul>${breakdown}</ul></div>` : ""}`;
+};
+
 // --- Remix department: Scanner Dashboard -----------------------------------
 const SCAN_LABEL = (m) => m.replace(/^scan_/, "").replace(/_/g, " ");
 const CREATE_LABEL = (m) => m.replace(/^create_/, "").replace(/_/g, " ");
