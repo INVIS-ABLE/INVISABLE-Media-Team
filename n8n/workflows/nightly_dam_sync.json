@@ -1,0 +1,66 @@
+{
+  "name": "INVISABLE OS — Nightly DAM Sync (published → ResourceSpace)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "10 0 * * *" } ] }
+      },
+      "id": "schedule",
+      "name": "Every night 00:10",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [ 240, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/queue?status=published",
+        "options": {}
+      },
+      "id": "published",
+      "name": "List published posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 480, 300 ]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "id": "split",
+      "name": "Split items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [ 700, 300 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.INVISABLE_CORE_URL}}/v1/dam/sync/{{$json.id}}",
+        "options": {}
+      },
+      "id": "damsync",
+      "name": "Sync post → ResourceSpace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [ 920, 300 ]
+    },
+    {
+      "parameters": {
+        "content": "For every published post, pushes its finished media assets into ResourceSpace and records a dam_ref. Safe no-op (dry-run) until RESOURCESPACE_URL/_USER/_PRIVATE_KEY are set. Run after producing/assembling so the DAM mirrors what actually went live.",
+        "height": 180,
+        "width": 340
+      },
+      "id": "note",
+      "name": "Off-box archival",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [ 700, 460 ]
+    }
+  ],
+  "connections": {
+    "Every night 00:10": { "main": [ [ { "node": "List published posts", "type": "main", "index": 0 } ] ] },
+    "List published posts": { "main": [ [ { "node": "Split items", "type": "main", "index": 0 } ] ] },
+    "Split items": { "main": [ [ { "node": "Sync post → ResourceSpace", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [ { "name": "invisable-os" } ]
+}

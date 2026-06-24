@@ -9,7 +9,8 @@ does at `/workflows`).
 | `daily_content_cycle.json` | 07:00 daily | Harvest abstracted signals → `POST /v1/daily/plan` (persist) → branch when posts exist → read the approval queue. The day lands in `pending_review`; the founder approves in the PWA. |
 | `scanner_sweep.json` | hourly :17 | `POST /v1/harvest` (invisible illness, trades, tool theft, benefits, trends) + `POST /v1/opportunities/scan` (podcasts/speaking/sponsors). Abstracted signals only, persisted in core. |
 | `comment_to_content.json` | every 30 min | Pull comments/DMs (Composio integration point) → `GET /v1/agents/route` (Comment-to-Content agent) → `POST /v1/engagement/comment` to draft a compliant reply for approval. |
-| `nightly_learning.json` | 23:40 daily | `POST /v1/metrics/sync` (Metricool → Watchtower) then `GET /v1/founder/recognition`. Closes the learning loop and updates the Founder Recognition Index. |
+| `nightly_learning.json` | 23:40 daily | `POST /v1/metrics/sync` (Metricool → Watchtower) then `GET /v1/founder/recognition`. Closes the learning loop and updates the Founder Recognition Index. Safe no-op until Metricool keys are set. |
+| `nightly_dam_sync.json` | 00:10 daily | List published posts → for each `POST /v1/dam/sync/{id}` — push finished media into ResourceSpace. Safe dry-run until ResourceSpace keys are set. |
 | `campaign_factory.json` | webhook `/campaign` | On-demand `{"topic": …}` → `POST /v1/tournament/run` per format (TikTok, Instagram, …) → winners to the approval queue. |
 | `media_production.json` | every 15 min | `GET /v1/queue?status=approved` → per item `POST /v1/media/produce/{id}` → `POST /v1/media/assemble/{id}`. Renderers fall back to dry-run when a backend isn't configured. |
 | `relationship_followups.json` | 09:03 daily | `GET /v1/partners` → filter active relationships → nudge the founder in the PWA. Read-only; never contacts anyone automatically. |

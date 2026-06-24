@@ -224,8 +224,15 @@ def importlib_available(module: str) -> bool:
 
 
 def default_probes() -> list[VideoProbe]:
-    """The probes run, in order, to enrich a spec from a file."""
-    return [FFmpegProbe(), WhisperProbe()]
+    """The probes run, in order, to enrich a spec from a file.
+
+    FFmpeg (container/loudness) → Whisper (transcript/captions) → OpenCV faces and
+    OCR text (protected regions). Each degrades to a dry-run when its tool is absent.
+    """
+    # Imported here to avoid a circular import (region_probe imports from video_qc).
+    from invisable_os.media.region_probe import OCRTextProbe, OpenCVFaceProbe
+
+    return [FFmpegProbe(), WhisperProbe(), OpenCVFaceProbe(), OCRTextProbe()]
 
 
 def probe_video(
