@@ -11,6 +11,31 @@ the system compounds what it learns over time.
 
 ---
 
+## ⬇️ Download the desktop app
+
+[![Download for Windows](https://img.shields.io/github/v/release/INVIS-ABLE/INVISABLE-Media-Team?label=Download%20for%20Windows&logo=windows&style=for-the-badge)](https://github.com/INVIS-ABLE/INVISABLE-Media-Team/releases/latest)
+
+**[⬇️ Get the latest INVISABLE® Media Team installer →](https://github.com/INVIS-ABLE/INVISABLE-Media-Team/releases/latest)**
+
+The full desktop application — packaged, signed installer. Download it, **double-click
+to install**, and it opens on your desktop:
+
+- **`INVISABLE Media Team_x.x.x_x64-setup.exe`** — Windows installer (recommended). Run
+  it and pick your role on first launch:
+  - **🛰️ Command Centre** on the server — the agency control room.
+  - **🎬 Studio Worker** on the 5090 — the render/production worker.
+
+> The installer is published as a **GitHub Release** (shown in the **Releases** panel on
+> the right of this page). It's built automatically by the
+> [desktop build workflow](.github/workflows/desktop-build.yml): push a `desktop-vX.Y.Z`
+> tag (or run the workflow manually) and the Windows `.exe`/`.msi` is built and attached
+> to the release. Build it yourself any time with `cd desktop && npm run tauri build`.
+
+See [`desktop/README.md`](desktop/README.md) for full setup, the role selector, server
+URL settings, and Cloudflare Access.
+
+---
+
 ## Why this exists
 
 Invisible illnesses are real, widespread, and under-recognised. INVISABLE® is a

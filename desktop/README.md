@@ -1,5 +1,7 @@
 # INVISABLE® Media Team — Desktop
 
+**[⬇️ Download the latest installer →](https://github.com/INVIS-ABLE/INVISABLE-Media-Team/releases/latest)** &nbsp;·&nbsp; double-click to install, then pick your role on first launch.
+
 Native desktop apps that wrap and control the INVISABLE® Media Team PWA/API. Built
 with **[Tauri](https://v2.tauri.app)** (Rust + a tiny TypeScript frontend, no heavy
 runtime). One executable ships **two roles**, chosen at first launch:
