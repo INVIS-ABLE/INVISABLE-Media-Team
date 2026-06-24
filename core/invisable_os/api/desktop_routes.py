@@ -651,12 +651,38 @@ def api_content_request(req: ContentRequest) -> dict:
     )
 
     repo = get_repository()
+
+    # Persist the winners into the approval queue so they actually show up for
+    # review — that's what makes "Generate New Post" produce something to act on.
+    queued_ids: list[str] = []
+    for scored in result.winners:
+        cand = scored.candidate
+        queued_ids.append(
+            repo.enqueue(
+                {
+                    "candidate_id": cand.id,
+                    "candidate": cand.model_dump(mode="json"),
+                    "status": "pending_review",
+                    "platform": cand.platform.value,
+                    "weighted_total": round(getattr(scored, "total", 0.0), 4),
+                    "needs_human_review": True,
+                    "asset_count": 0,
+                }
+            )
+        )
+
     job = None
-    if req.create_render_job:
+    if req.create_render_job and queued_ids:
         job = repo.create_render_job(
             "ffmpeg_render",
             title=f"Requested: {req.brief[:60]}",
+            queue_item_id=queued_ids[0],
             priority=2 if req.campaign else 4,
             params={"brief": req.brief, "platform": req.platform, "campaign": req.campaign},
         )
-    return {"ok": True, "tournament": result.summary(), "render_job": job}
+    return {
+        "ok": True,
+        "queued_ids": queued_ids,
+        "tournament": result.summary(),
+        "render_job": job,
+    }
