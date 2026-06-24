@@ -53,6 +53,25 @@ API: `POST /v1/metrics/sync` (body: `{}` to pull from Metricool, or
 `{"signals": [...]}` to ingest directly). A nightly n8n workflow should call this so
 the platform compounds what it learns each day.
 
+### Per-post attribution — which posts earned the recognition
+
+The Founder Recognition Index is a saturating function of *aggregate* recognition
+metrics, so a post's contribution isn't simply its raw numbers.
+`AlgorithmWatchtower.attribute_recognition()` computes each metric's contribution to
+the index, then allocates it to posts in proportion to their share — an exact split
+(per-post contributions sum back to the index) with a per-metric breakdown.
+
+```
+GET /v1/founder/recognition/by-post?limit=10
+   → { index, attributed_posts, posts: [{ candidate_id, hook, platform,
+                                          contribution, breakdown, metrics }] }
+```
+
+Surfaced in the dashboard's **Founder Recognition** view as "Top performing posts",
+answering "which post drove the podcast invitations?". Empty until recognition-bearing
+signals (media mentions, podcast/speaking invitations, partner/sponsor enquiries,
+profile visits) are synced against published posts.
+
 ## Status & safety
 
 | Integration | Configured by | Offline behaviour |
