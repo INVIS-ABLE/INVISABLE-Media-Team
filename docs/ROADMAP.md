@@ -83,10 +83,17 @@ honest state of each piece:
 - ✅ **Reference audit** — licences verified; patterns borrowed clean-room. See
   [`REFERENCES.md`](REFERENCES.md), [`SCHEDULING.md`](SCHEDULING.md).
 
-## Next (clearly scoped extensions)
+### Generation build (added)
 
-- ⏳ **Live generation at volume** — richer Claude/Ollama prompts + structured JSON
-  output parsing + an LLM-judge scoring pass on top of the deterministic floor.
+- ✅ **Structured generation** — `LLMClient.complete_json` (Claude JSON / Ollama
+  `format:json`) + tolerant `extract_json`; the generator requests `{hook, body,
+  call_to_action}` and falls back to safe templates offline. Tested.
+- ✅ **LLM-judge** (`engines/judge.py`) — re-scores only the top contenders and
+  blends 50/50 with the deterministic floor; **self-disables offline** so tests stay
+  fast and behaviour is unchanged without a model. Wired into the tournament. Tested.
+- ✅ Docs: [`GENERATION.md`](GENERATION.md).
+
+## Next (clearly scoped extensions)
 - ⏳ **Real media rendering** — wire the ComfyUI graph submissions + ElevenLabs/
   Whisper calls behind the now-stubbed renderers; OpenCut assembly; ResourceSpace library.
 - ⏳ **Platform metrics ingestion** — real connectors (Metricool) feeding the Watchtower.

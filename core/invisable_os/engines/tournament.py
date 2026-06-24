@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from invisable_os.brain import Memory, get_brain
 from invisable_os.engines.founder import FounderEngine
 from invisable_os.engines.generator import Generator
+from invisable_os.engines.judge import LLMJudge
 from invisable_os.engines.scoring import Scorer
 from invisable_os.guardrails import check
 from invisable_os.models.content import ContentCandidate, ContentFormat, Platform
@@ -67,10 +68,13 @@ class ContentTournamentEngine:
         generator: Generator | None = None,
         scorer: Scorer | None = None,
         founder: FounderEngine | None = None,
+        judge: LLMJudge | None = None,
     ) -> None:
         self.generator = generator or Generator()
         self.scorer = scorer or Scorer()
         self.founder = founder or FounderEngine()
+        # The judge self-disables offline, so this is a no-op without a live model.
+        self.judge = judge if judge is not None else LLMJudge()
         self.brain = get_brain()
 
     def run(
@@ -85,6 +89,7 @@ class ContentTournamentEngine:
         published: list[ContentCandidate] | None = None,
         rebalance_founder: bool = True,
         angle: str | None = None,
+        judge_top: int = 8,
     ) -> TournamentResult:
         """Execute one tournament and return the winners.
 
@@ -128,6 +133,15 @@ class ContentTournamentEngine:
             (s for s in scored if not s.guardrail.blocked), key=lambda s: s.total, reverse=True
         )
         ranked = self._dedupe(ranked_all)
+
+        # 4b. LLM-judge pass: re-score the top contenders and blend with the floor,
+        #     then re-rank. No-op offline (judge.available is False).
+        if self.judge.available and ranked:
+            for sc in ranked[:judge_top]:
+                judged = self.judge.score(sc.candidate)
+                if judged is not None:
+                    sc.scorecard = self.judge.blend(sc.scorecard, judged)
+            ranked.sort(key=lambda s: s.total, reverse=True)
 
         # 5. Select, then (optionally) let the Founder Engine rebalance toward the mix.
         chosen = ranked[: max(select, 0)]
