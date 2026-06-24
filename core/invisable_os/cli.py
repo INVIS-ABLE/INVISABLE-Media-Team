@@ -16,6 +16,8 @@
     invisable remix <mode>      # run a Remix create mode (e.g. create_parody --topic ...)
     invisable seed-popculture   # seed the pop-culture & meme index
     invisable doctor            # run the whole pipeline once and check it all works
+    invisable backup <file>     # export critical state to a portable JSON snapshot
+    invisable restore <file>    # idempotently restore state from a snapshot
 """
 
 from __future__ import annotations
@@ -23,6 +25,38 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+
+
+def _backup(args) -> int:
+    """Export the platform's critical state to a portable JSON snapshot file."""
+    from invisable_os.services import export_snapshot
+    from invisable_os.store import init_db
+
+    init_db()
+    snapshot = export_snapshot()
+    with open(args.file, "w", encoding="utf-8") as fh:
+        json.dump(snapshot, fh, indent=2, default=str)
+    print(f"Backed up {snapshot['total']} rows to {args.file}")
+    for name, n in snapshot["counts"].items():
+        print(f"  {name:16} {n}")
+    return 0
+
+
+def _restore(args) -> int:
+    """Idempotently restore the platform's state from a snapshot file."""
+    from invisable_os.services import restore_snapshot
+    from invisable_os.store import init_db
+
+    init_db()
+    with open(args.file, encoding="utf-8") as fh:
+        snapshot = json.load(fh)
+    result = restore_snapshot(snapshot)
+    if not result["checksum_ok"]:
+        print("⚠  checksum mismatch — restoring anyway:", "; ".join(result["problems"]))
+    print(f"Restored {result['total_restored']} rows from {args.file}")
+    for name, n in result["restored"].items():
+        print(f"  {name:16} +{n} (skipped {result['skipped'][name]} already present)")
+    return 0
 
 
 def _doctor(_args) -> int:
@@ -393,6 +427,14 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "doctor", help="run the whole pipeline once and report that everything works"
     ).set_defaults(func=_doctor)
+
+    p_backup = sub.add_parser("backup", help="export critical state to a JSON snapshot")
+    p_backup.add_argument("file", help="path to write the snapshot to")
+    p_backup.set_defaults(func=_backup)
+
+    p_restore = sub.add_parser("restore", help="restore state from a JSON snapshot")
+    p_restore.add_argument("file", help="path to read the snapshot from")
+    p_restore.set_defaults(func=_restore)
 
     args = parser.parse_args(argv)
     return args.func(args)

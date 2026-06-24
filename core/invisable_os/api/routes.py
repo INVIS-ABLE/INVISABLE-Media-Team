@@ -54,12 +54,15 @@ from invisable_os.services import (
     calendar,
     check_post,
     consent_state,
+    export_snapshot,
+    failsafe_status,
     finish_post,
     gather_topics,
     post_attribution,
     produce_media,
     publish_due,
     reserve_health,
+    restore_snapshot,
     run_and_queue_daily,
     run_swarm_cycle,
     schedule_next,
@@ -718,6 +721,32 @@ def brain_stats() -> dict:
 def brain_alerts(weeks: int = 4, min_change: float = 0.20) -> dict:
     """Theme performance alerts: where a theme's metrics shifted vs its recent baseline."""
     return theme_alerts(baseline_weeks=weeks, min_change=min_change)
+
+
+# --- Failsafe + Backup ------------------------------------------------------
+
+
+class RestoreRequest(BaseModel):
+    snapshot: dict
+    sections: list[str] | None = None
+
+
+@router.get("/v1/failsafe/status")
+def failsafe() -> dict:
+    """What is recoverable right now, and which fallback chains stand ready."""
+    return failsafe_status()
+
+
+@router.get("/v1/backup/export")
+def backup_export() -> dict:
+    """Export the platform's critical state into one portable snapshot."""
+    return export_snapshot()
+
+
+@router.post("/v1/backup/restore")
+def backup_restore(req: RestoreRequest) -> dict:
+    """Idempotently restore a snapshot — only rows not already present are added."""
+    return restore_snapshot(req.snapshot, sections=req.sections)
 
 
 # --- Credible sources & the fact-check rule ---------------------------------
