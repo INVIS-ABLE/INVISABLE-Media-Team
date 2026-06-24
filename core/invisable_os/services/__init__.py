@@ -14,6 +14,7 @@ from invisable_os.services.fact_check import (
     credibility,
     is_fact_led,
 )
+from invisable_os.services.insights import theme_alerts
 from invisable_os.services.media import assemble_post, finish_post, produce_media
 from invisable_os.services.metrics import sync_metrics
 from invisable_os.services.pipeline import persist_plan, run_and_queue_daily
@@ -57,6 +58,7 @@ __all__ = [
     "sync_post_to_dam",
     "sync_metrics",
     "post_attribution",
+    "theme_alerts",
     "AgentSwarm",
     "SWARM_BOTS",
     "run_swarm_cycle",
