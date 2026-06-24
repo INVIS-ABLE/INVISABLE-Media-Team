@@ -74,5 +74,9 @@ export interface SystemStatus {
   posting_paused: boolean;
   paused_accounts: string[];
   emergency_pause: boolean;
+  compliance_risk?: string;
+  posting_mode?: string;
+  account_health?: number;
+  mode_downgrade_suggested?: boolean;
   integrations: Record<string, boolean>;
 }

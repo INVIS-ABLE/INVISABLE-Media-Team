@@ -6,6 +6,7 @@ import { api, get, liveJobProgress, startWorker, stopWorker } from "../lib/store
 import { pickFile } from "../lib/tauri";
 import type { SystemStatus, WorkerEvent } from "../lib/types";
 import * as act from "./actions";
+import { platformHealthView } from "./compliance";
 import { openPostEditor } from "./editor";
 
 interface QueueItem {
@@ -704,5 +705,6 @@ export const VIEWS: Record<string, () => HTMLElement> = {
   "reels-queue": () => formatQueueView("Reels Queue", "short_video"),
   "render-jobs": renderJobsView,
   "worker-status": workerStatusView,
+  "platform-health": platformHealthView,
   logs: logsView,
 };

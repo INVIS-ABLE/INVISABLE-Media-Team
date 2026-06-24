@@ -110,6 +110,21 @@ def api_system_status() -> dict:
     automation = _automation_state(repo)
 
     scheduled = counts.get(QueueStatus.SCHEDULED.value, 0)
+
+    # Compliance Watchdog snapshot for the top bar (risk + mode + health).
+    try:
+        from invisable_os.api.compliance_routes import build_report
+
+        compliance = build_report(repo)
+        watchdog = {
+            "compliance_risk": compliance.get("risk_level"),
+            "posting_mode": compliance.get("mode"),
+            "account_health": compliance.get("health_score"),
+            "mode_downgrade_suggested": compliance.get("mode_changed"),
+        }
+    except Exception:  # noqa: BLE001 — status must never fail on the watchdog
+        watchdog = {}
+
     return {
         "ok": True,
         "version": __version__,
@@ -122,6 +137,7 @@ def api_system_status() -> dict:
         "posts_scheduled_today": scheduled,
         "pending_review": counts.get(QueueStatus.PENDING_REVIEW.value, 0),
         **automation,
+        **watchdog,
         "integrations": _integration_flags(),
     }
 

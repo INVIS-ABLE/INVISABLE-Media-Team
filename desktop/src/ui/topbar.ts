@@ -73,6 +73,7 @@ export function topbar(): HTMLElement {
       dot(!emergency, emergency),
       el("span", {}, emergency ? "PAUSED" : "Automation on"),
     ),
+    riskStat(status?.compliance_risk),
   );
 
   const right = el(
@@ -86,6 +87,8 @@ export function topbar(): HTMLElement {
     ),
     pill("Scheduled today", fmt(status?.posts_scheduled_today), "pill--ok"),
     pill("To review", fmt(status?.pending_review), "pill--warn"),
+    status?.posting_mode ? pill("Mode", modeShort(status.posting_mode), "pill--info") : el("span", {}),
+    status?.account_health != null ? pill("Health", fmt(status.account_health), healthCls(status.account_health)) : el("span", {}),
     el(
       "button",
       {
@@ -98,6 +101,34 @@ export function topbar(): HTMLElement {
   );
 
   return el("header", { class: "topbar" }, left, right);
+}
+
+function riskStat(risk: string | undefined): HTMLElement {
+  if (!risk) return el("span", {});
+  const ok = risk === "low";
+  const warn = risk === "medium";
+  return el(
+    "div",
+    { class: "stat" },
+    dot(ok, warn),
+    el("span", {}, `Risk: ${risk.toUpperCase()}`),
+  );
+}
+
+function modeShort(mode: string): string {
+  return (
+    {
+      introduction: "Intro",
+      modest_growth: "Modest",
+      active_influencer: "Active",
+      career: "Career",
+      manual_only: "Manual",
+    }[mode] ?? mode
+  );
+}
+
+function healthCls(h: number): string {
+  return h >= 70 ? "pill--ok" : h >= 40 ? "pill--warn" : "pill--bad";
 }
 
 function hostOf(url: string | null | undefined): string {
