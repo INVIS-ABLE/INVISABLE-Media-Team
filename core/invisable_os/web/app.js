@@ -178,11 +178,192 @@ views.values = async (root) => {
     </div>`;
 };
 
+// --- Remix department: Scanner Dashboard -----------------------------------
+const SCAN_LABEL = (m) => m.replace(/^scan_/, "").replace(/_/g, " ");
+const CREATE_LABEL = (m) => m.replace(/^create_/, "").replace(/_/g, " ");
+
+views.scanner = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Scanner Dashboard</h2></div>
+    <div class="muted">Scan culture into abstracted ideas. References are stored as our
+      own summary only — never a verbatim copy, never reposted as-is.</div>
+    <div class="row" id="scanbtns" style="flex-wrap:wrap;gap:8px;margin-top:12px"></div>
+    <div class="row" style="margin-top:12px">
+      <input id="link" class="input" placeholder="Paste a link or topic…" style="flex:1" />
+      <button class="btn" id="scanlink">Add reference</button>
+    </div>
+    <div id="scanout"></div>`;
+  const btns = $("#scanbtns", root);
+  try {
+    const { scan_modes } = await api("/v1/remix/modes");
+    for (const mode of scan_modes) {
+      const b = el(`<button class="btn ghost">${esc(SCAN_LABEL(mode))}</button>`);
+      b.onclick = () => runScan(root, mode);
+      btns.appendChild(b);
+    }
+  } catch (e) { btns.innerHTML = `<span class="muted">Modes unavailable: ${esc(e.message)}</span>`; }
+  $("#scanlink", root).onclick = () => {
+    const v = $("#link", root).value.trim();
+    if (!v) return toast("Enter a link or topic");
+    addManualLink(root, v);
+  };
+};
+
+async function runScan(root, mode) {
+  const out = $("#scanout", root);
+  out.innerHTML = `<div class="loading">Scanning…</div>`;
+  try {
+    const d = await api("/v1/scanner/scan", { method: "POST", body: JSON.stringify({ mode, persist: true }) });
+    out.innerHTML = `<div class="card"><div class="hook">${esc(SCAN_LABEL(mode))} · ${d.count || 0} item(s)</div>
+      ${(d.items || []).map((it) => `<div class="slot"><span class="badge">${(it.trend_score ?? it.score ?? 0).toFixed?.(2) ?? "–"}</span>
+        <span>${esc(it.title || it.summary || "")}</span></div>`).join("")}</div>`;
+    toast(`Scanned ${d.count || 0} → Reference Inbox`);
+  } catch (e) { out.innerHTML = `<div class="muted">Scan failed: ${esc(e.message)}</div>`; }
+}
+
+async function addManualLink(root, value) {
+  const out = $("#scanout", root);
+  out.innerHTML = `<div class="loading">Classifying…</div>`;
+  const body = value.startsWith("http") ? { url: value } : { topic: value };
+  try {
+    const d = await api("/v1/scanner/manual-link", { method: "POST", body: JSON.stringify(body) });
+    const r = d.reference || {};
+    out.innerHTML = `<div class="card">
+      <div class="hook">${esc(r.title || r.url || value)}</div>
+      <div class="meta">
+        <span class="badge ${USABLE.has(r.rights_status) ? "good" : "warn"}">${esc(r.rights_status || "reference_only")}</span>
+        ${r.copyright_risk ? `<span class="badge ${r.copyright_risk === "high" ? "bad" : ""}">risk: ${esc(r.copyright_risk)}</span>` : ""}
+      </div>
+      <h3>Suggested INVISABLE angles</h3>
+      <ul>${(d.suggested_angles || []).map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+      ${d.download_plan ? `<div class="muted">${esc(typeof d.download_plan === "string" ? d.download_plan : (d.download_plan.note || ""))}</div>` : ""}
+    </div>`;
+    toast("Added to Reference Inbox");
+  } catch (e) { out.innerHTML = `<div class="muted">Failed: ${esc(e.message)}</div>`; }
+}
+
+// Rights statuses that may enter assembled media (filled from /v1/rights).
+let USABLE = new Set(["owned", "licensed", "public_domain", "creative_commons", "user_submitted_consent", "platform_duet_stitch"]);
+
+// --- Remix department: Reference Inbox -------------------------------------
+views.inbox = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Reference Inbox</h2><div class="spacer"></div>
+    <button class="btn ghost" id="refresh">Refresh</button></div><div class="cards" id="list"></div>`;
+  $("#refresh", root).onclick = () => views.inbox(root);
+  const { items } = await api("/v1/scanner/items");
+  const list = $("#list", root);
+  if (!items.length) { list.innerHTML = `<div class="muted">Nothing scanned yet — use the Scanner.</div>`; return; }
+  list.innerHTML = "";
+  for (const it of items) {
+    const card = el(`<div class="card">
+      <div class="hook">${esc(it.title || "(untitled)")}</div>
+      <div class="body">${esc(it.summary || "")}</div>
+      <div class="meta">
+        <span class="badge">${esc(it.platform || "—")}</span>
+        <span class="badge ${it.rights_status === "reference_only" ? "warn" : "good"}">${esc(it.rights_status || "")}</span>
+        ${(it.risk_score ?? 0) > 0.5 ? `<span class="badge bad">risk ${it.risk_score}</span>` : ""}
+      </div>
+      <div class="actions"><button class="btn" data-a="remix">Generate content</button></div></div>`);
+    card.querySelector("button").onclick = () => show("remix", it);
+    list.appendChild(card);
+  }
+};
+
+// --- Remix department: Remix Studio ----------------------------------------
+views.remix = async (root, seed) => {
+  root.innerHTML = `<div class="row"><h2>Remix Studio</h2></div>
+    <div class="muted">Generates ORIGINAL content. Reference-only sources inspire scripts only —
+      they are never downloaded or reused as footage.</div>
+    <div class="form">
+      <input id="topic" class="input" placeholder="Topic / trend…" value="${esc(seed?.title || seed?.topic_area || "")}" style="flex:1 1 200px" />
+      <select id="mode" class="input"></select>
+      <input id="ref" class="input" placeholder="Reference URL (optional)" value="${esc(seed?.url || "")}" />
+      <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="sponsor" /> sponsor-safe</label>
+      <button class="btn" id="go">Generate</button>
+    </div>
+    <div id="remixout"></div>`;
+  try {
+    const { create_modes } = await api("/v1/remix/modes");
+    $("#mode", root).innerHTML = create_modes.map((m) => `<option value="${esc(m)}">${esc(CREATE_LABEL(m))}</option>`).join("");
+  } catch {}
+  $("#go", root).onclick = async (ev) => {
+    ev.target.disabled = true;
+    const body = {
+      mode: $("#mode", root).value,
+      topic: $("#topic", root).value.trim(),
+      reference_url: $("#ref", root).value.trim(),
+      sponsor_safe: $("#sponsor", root).checked,
+      persist: true,
+    };
+    if (!body.topic && !body.reference_url) { toast("Enter a topic or reference URL"); ev.target.disabled = false; return; }
+    try { renderRemix($("#remixout", root), await api("/v1/remix/create", { method: "POST", body: JSON.stringify(body) })); }
+    catch (e) { toast("Failed: " + e.message); }
+    ev.target.disabled = false;
+  };
+};
+
+function renderRemix(node, d) {
+  const packs = d.pack ? [d.pack] : (d.memes || []);
+  const warn = d.rights_warning ? `<div class="directive">${esc(d.rights_warning)}</div>` : "";
+  if (!packs.length) { node.innerHTML = warn + `<div class="muted">No pack returned (mode: ${esc(d.mode || "")}).</div>`; return; }
+  node.innerHTML = warn + packs.map((p) => `<div class="card">
+    <div class="meta">
+      ${d.job_id ? `<span class="badge good">queued</span>` : ""}
+      ${p.angle ? `<span class="badge pillar">${esc(p.angle)}</span>` : ""}
+      ${(p.risk_score ?? 0) > 0.5 ? `<span class="badge bad">risk ${p.risk_score}</span>` : `<span class="badge">risk ${p.risk_score ?? 0}</span>`}
+    </div>
+    ${(p.variants || []).map((v) => `<h3>${esc(v.label || v.platform || "variant")}</h3>
+      <pre class="script">${esc(v.script || "")}</pre>
+      ${v.voiceover ? `<div class="muted">VO: ${esc(v.voiceover)}</div>` : ""}`).join("")}
+    <h3>Caption</h3><div class="body">${esc(p.caption || "")}</div>
+    <div class="meta">${(p.hashtags || []).map((h) => `<span class="badge">${esc(h)}</span>`).join("")}</div>
+    ${(p.asset_suggestions || []).length ? `<h3>Rights-safe assets</h3><ul>${p.asset_suggestions.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
+  </div>`).join("");
+}
+
+// --- Remix department: Rights Manager --------------------------------------
+views.rights = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Rights Manager</h2></div>
+    <div id="ruleinfo" class="muted"></div>
+    <div class="form">
+      <input id="title" class="input" placeholder="Title / file path or source URL…" style="flex:1 1 220px" />
+      <select id="rstatus" class="input"></select>
+      <input id="owner" class="input" placeholder="Owner (e.g. INVISABLE)" />
+      <button class="btn" id="add">Register asset</button>
+    </div>
+    <div class="cards" id="list"></div>`;
+  let info = {};
+  try { info = await api("/v1/rights"); } catch {}
+  if (info.usable_in_media) USABLE = new Set(info.usable_in_media);
+  $("#ruleinfo", root).textContent = info.rule || "Only owned/licensed/CC/public-domain/consented/duet-stitch material may enter assembled media.";
+  $("#rstatus", root).innerHTML = (info.all_statuses || [...USABLE]).map((s) =>
+    `<option value="${esc(s)}">${esc(s)}${USABLE.has(s) ? " ✓" : ""}</option>`).join("");
+  $("#add", root).onclick = async () => {
+    const title = $("#title", root).value.trim();
+    if (!title) return toast("Enter a title / path / URL");
+    try {
+      await api("/v1/rights-assets", { method: "POST", body: JSON.stringify({
+        title, file_path: title, source_url: title.startsWith("http") ? title : "",
+        rights_status: $("#rstatus", root).value, owner: $("#owner", root).value.trim() }) });
+      toast("Asset registered"); views.rights(root);
+    } catch (e) { toast("Failed: " + e.message); }
+  };
+  const { assets } = await api("/v1/rights-assets");
+  const list = $("#list", root);
+  if (!assets.length) { list.innerHTML = `<div class="muted">No assets yet. Only usable-rights assets can enter assembled media.</div>`; return; }
+  list.innerHTML = assets.map((a) => `<div class="card">
+    <div class="body">${esc(a.title || a.file_path || a.source_url)}</div>
+    <div class="meta">
+      <span class="badge">${esc(a.asset_type || "asset")}</span>
+      <span class="badge ${USABLE.has(a.rights_status) ? "good" : "warn"}">${esc(a.rights_status)}</span>
+      <span class="badge">${esc(a.owner || "—")}</span>
+    </div></div>`).join("");
+};
+
 // --- router ----------------------------------------------------------------
-async function show(name) {
+async function show(name, seed) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === name));
   const root = $("#view"); root.innerHTML = `<div class="loading">Loading…</div>`;
-  try { await views[name](root); } catch (e) { root.innerHTML = `<div class="loading">Could not load: ${esc(e.message)}</div>`; }
+  try { await views[name](root, seed); } catch (e) { root.innerHTML = `<div class="loading">Could not load: ${esc(e.message)}</div>`; }
   location.hash = name;
 }
 
