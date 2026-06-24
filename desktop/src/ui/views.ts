@@ -315,8 +315,24 @@ interface Account {
   status: string;
 }
 
+// Status groups behind the per-account drill-down buttons. "Failed" maps to the
+// rejected lifecycle status — the platform's closest notion of a post that won't go.
+const ACCOUNT_FILTERS: Record<string, { label: string; statuses: string[] }> = {
+  queue: { label: "Queue", statuses: ["pending_review", "needs_improvement", "approved"] },
+  scheduled: { label: "Scheduled", statuses: ["scheduled"] },
+  published: { label: "Published", statuses: ["published"] },
+  failed: { label: "Failed", statuses: ["rejected"] },
+};
+
+interface Drill {
+  platform: string;
+  group: string;
+}
+
 export function accountsView(): HTMLElement {
   const host = el("div", {});
+  let drill: Drill | null = null;
+
   const render = () =>
     asyncBox(async () => {
       const r = await api<{ accounts: Account[]; postiz_configured: boolean }>(
@@ -324,6 +340,8 @@ export function accountsView(): HTMLElement {
         "/api/accounts",
       );
       const accounts = r.ok ? r.body.accounts ?? [] : [];
+      const refresh = () => reload(host, render);
+
       const connectRow = section(
         "Connect accounts",
         el("p", { class: "muted" }, "Connections complete server-side in Postiz/n8n — no credentials pass through this app."),
@@ -332,9 +350,20 @@ export function accountsView(): HTMLElement {
           { class: "btn-row" },
           btn("Connect Instagram", "btn--info", () => void act.connectAccount("instagram")),
           btn("Connect TikTok", "btn--info", () => void act.connectAccount("tiktok")),
-          btn("Refresh Account Status", "btn--ghost", () => reload(host, render)),
+          btn("Refresh Account Status", "btn--ghost", refresh),
         ),
       );
+
+      const filterBtn = (a: Account, group: string) =>
+        btn(
+          `View ${ACCOUNT_FILTERS[group].label}`,
+          drill?.platform === a.platform && drill?.group === group ? "btn--info" : "btn--ghost",
+          () => {
+            drill = { platform: a.platform, group };
+            refresh();
+          },
+        );
+
       const list =
         accounts.length === 0
           ? el("p", { class: "muted" }, "No channels configured yet.")
@@ -354,14 +383,53 @@ export function accountsView(): HTMLElement {
                   el(
                     "div",
                     { class: "card__actions" },
+                    filterBtn(a, "queue"),
+                    filterBtn(a, "scheduled"),
+                    filterBtn(a, "published"),
+                    filterBtn(a, "failed"),
+                  ),
+                  el(
+                    "div",
+                    { class: "card__actions" },
                     a.paused
-                      ? btn("Resume Account", "btn--ok", () => void act.resumeAccount(a.id))
-                      : btn("Pause Account", "btn--warn", () => void act.pauseAccount(a.id)),
+                      ? btn("Resume Account", "btn--ok", () => void act.resumeAccount(a.id).then(refresh))
+                      : btn("Pause Account", "btn--warn", () => void act.pauseAccount(a.id).then(refresh)),
                   ),
                 ),
               ),
             );
-      return el("div", {}, connectRow, section("Connected accounts", list));
+
+      const blocks: (HTMLElement | string)[] = [
+        connectRow,
+        section("Connected accounts", list),
+      ];
+
+      // Drill-down: posts for the selected platform + status group.
+      if (drill) {
+        const f = ACCOUNT_FILTERS[drill.group];
+        const q = await api<{ items: QueueItem[] }>("GET", "/api/queue");
+        const items = (q.ok ? q.body.items ?? [] : []).filter(
+          (it) => it.platform === drill!.platform && f.statuses.includes(it.status),
+        );
+        blocks.push(
+          section(
+            `${drill.platform} · ${f.label} (${items.length})`,
+            el(
+              "div",
+              { class: "btn-row" },
+              btn("Close", "btn--ghost", () => {
+                drill = null;
+                refresh();
+              }),
+            ),
+            items.length
+              ? el("div", { class: "card-grid" }, ...items.map((it) => postCard(it, refresh)))
+              : el("p", { class: "muted" }, `No ${f.label.toLowerCase()} posts for ${drill.platform}.`),
+          ),
+        );
+      }
+
+      return el("div", {}, ...blocks);
     });
   reload(host, render);
   return host;
