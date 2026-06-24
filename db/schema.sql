@@ -428,3 +428,45 @@ CREATE TABLE IF NOT EXISTS subtitles (
     language          TEXT NOT NULL DEFAULT 'en',
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ============================================================================
+-- CREDIBLE SOURCES — the fact-attribution layer.
+--
+-- Any fact-led post (statistics, news/government/NHS/employment/legal/medical
+-- claims, broadcast quotes) must carry a credible source. credibility_level is a
+-- tier 1 (highest: official UK gov) … 8 (lowest: social/community lived-experience
+-- only). The fact-check service enforces the rule; the platform must never present
+-- a social-media rumour as a fact. See core/invisable_os/services/fact_check.py.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS source (
+    id                TEXT PRIMARY KEY,
+    name              TEXT NOT NULL,
+    url               TEXT NOT NULL DEFAULT '',
+    source_type       TEXT NOT NULL DEFAULT 'news',
+    credibility_level INT  NOT NULL DEFAULT 3,
+    country           TEXT NOT NULL DEFAULT 'UK',
+    topic_area        TEXT NOT NULL DEFAULT '',
+    rss_url           TEXT NOT NULL DEFAULT '',
+    enabled           BOOLEAN NOT NULL DEFAULT TRUE,
+    notes             TEXT NOT NULL DEFAULT '',
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_source_topic ON source (topic_area);
+
+CREATE TABLE IF NOT EXISTS source_claim (
+    id                   TEXT PRIMARY KEY,
+    source_id            TEXT NOT NULL DEFAULT '',
+    title                TEXT NOT NULL DEFAULT '',
+    claim_text           TEXT NOT NULL DEFAULT '',
+    quoted_text          TEXT NOT NULL DEFAULT '',
+    paraphrase           TEXT NOT NULL DEFAULT '',
+    url                  TEXT NOT NULL DEFAULT '',
+    publication_date     TEXT,
+    accessed_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    confidence_score     REAL NOT NULL DEFAULT 0.5,
+    primary_or_secondary TEXT NOT NULL DEFAULT 'secondary',
+    fact_checked_status  TEXT NOT NULL DEFAULT 'unverified',
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_source_claim_source ON source_claim (source_id);
+CREATE INDEX IF NOT EXISTS idx_source_claim_status ON source_claim (fact_checked_status);

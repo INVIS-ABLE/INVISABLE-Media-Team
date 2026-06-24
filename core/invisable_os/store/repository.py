@@ -30,6 +30,8 @@ from invisable_os.store.models import (
     ScannedItemRow,
     ScannerSourceRow,
     ScheduleSlotRow,
+    SourceClaimRow,
+    SourceRow,
     SubtitleRow,
     TagMemberRow,
 )
@@ -577,6 +579,93 @@ class Repository:
             if queue_item_id:
                 stmt = stmt.where(MediaAssetRow.queue_item_id == queue_item_id)
             return [r.as_dict() for r in s.scalars(stmt)]
+
+    # --- Credible sources & claims -----------------------------------------
+
+    def add_source(self, source: dict) -> str:
+        source_id = source.get("id") or uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                SourceRow(
+                    id=source_id,
+                    name=source.get("name", "Untitled source"),
+                    url=source.get("url", ""),
+                    source_type=source.get("source_type", "news"),
+                    credibility_level=source.get("credibility_level", 3),
+                    country=source.get("country", "UK"),
+                    topic_area=source.get("topic_area", ""),
+                    rss_url=source.get("rss_url", ""),
+                    enabled=source.get("enabled", True),
+                    notes=source.get("notes", ""),
+                )
+            )
+        return source_id
+
+    def list_sources(self, enabled: bool | None = None) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(SourceRow)
+            if enabled is not None:
+                stmt = stmt.where(SourceRow.enabled == enabled)
+            stmt = stmt.order_by(SourceRow.credibility_level.asc())
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def get_source(self, source_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceRow, source_id)
+            return row.as_dict() if row else None
+
+    def set_source_enabled(self, source_id: str, enabled: bool) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceRow, source_id)
+            if row is None:
+                return None
+            row.enabled = enabled
+            return row.as_dict()
+
+    def add_source_claim(self, claim: dict) -> str:
+        claim_id = claim.get("id") or uuid.uuid4().hex
+        with session_scope() as s:
+            s.add(
+                SourceClaimRow(
+                    id=claim_id,
+                    source_id=claim.get("source_id", ""),
+                    title=claim.get("title", ""),
+                    claim_text=claim.get("claim_text", ""),
+                    quoted_text=claim.get("quoted_text", ""),
+                    paraphrase=claim.get("paraphrase", ""),
+                    url=claim.get("url", ""),
+                    publication_date=claim.get("publication_date"),
+                    confidence_score=claim.get("confidence_score", 0.5),
+                    primary_or_secondary=claim.get("primary_or_secondary", "secondary"),
+                    fact_checked_status=claim.get("fact_checked_status", "unverified"),
+                )
+            )
+        return claim_id
+
+    def list_source_claims(self, source_id: str | None = None,
+                           fact_checked_status: str | None = None,
+                           limit: int = 200) -> list[dict]:
+        with session_scope() as s:
+            stmt = select(SourceClaimRow)
+            if source_id:
+                stmt = stmt.where(SourceClaimRow.source_id == source_id)
+            if fact_checked_status:
+                stmt = stmt.where(SourceClaimRow.fact_checked_status == fact_checked_status)
+            stmt = stmt.order_by(SourceClaimRow.created_at.desc()).limit(limit)
+            return [r.as_dict() for r in s.scalars(stmt)]
+
+    def get_source_claim(self, claim_id: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceClaimRow, claim_id)
+            return row.as_dict() if row else None
+
+    def set_claim_fact_checked(self, claim_id: str, status: str) -> dict | None:
+        with session_scope() as s:
+            row = s.get(SourceClaimRow, claim_id)
+            if row is None:
+                return None
+            row.fact_checked_status = status
+            return row.as_dict()
 
 
 def _as_utc(dt: datetime) -> datetime:
