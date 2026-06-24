@@ -157,12 +157,14 @@ export async function api<T = unknown>(
   });
 }
 
-export async function refreshStatus(): Promise<void> {
+export async function refreshStatus(): Promise<boolean> {
   const r = await api<SystemStatus>("GET", "/api/system/status");
   if (r.ok) {
     state.status = r.body;
     notify();
+    return true;
   }
+  return false;
 }
 
 // --- Worker -----------------------------------------------------------------
@@ -198,19 +200,71 @@ export async function stopWorker(): Promise<void> {
   await refreshWorker();
 }
 
-// --- Background polling ------------------------------------------------------
+// --- Background polling + auto-reconnect ------------------------------------
 
 let pollTimer: number | undefined;
+let statusFailures = 0; // consecutive failed status polls while "connected"
+let reconnectAttempts = 0; // for backoff while disconnected
+let ticking = false;
 
-export function startPolling(intervalMs = 5000): void {
-  stopPolling();
-  pollTimer = window.setInterval(() => {
-    if (state.connection?.connected) void refreshStatus();
+const POLL_MS = 5000;
+// Skip this many ticks between reconnect attempts (exponential, capped) so a
+// downed server isn't hammered: ~5s, 10s, 20s, 40s, 60s.
+function reconnectSkip(): number {
+  return Math.min(2 ** reconnectAttempts, 12);
+}
+let skipsRemaining = 0;
+
+async function tick(): Promise<void> {
+  if (ticking) return; // never overlap slow network calls
+  ticking = true;
+  try {
     if (isTauri()) void refreshWorker();
-  }, intervalMs);
+
+    if (state.connection?.connected) {
+      const ok = await refreshStatus();
+      if (ok) {
+        statusFailures = 0;
+      } else if (++statusFailures >= 2) {
+        // Server dropped — mark disconnected so the top bar goes red, then let the
+        // reconnect path re-resolve (which may now pick a different priority URL).
+        log("warn", "Lost connection to the server — reconnecting…");
+        if (state.connection) state.connection.connected = false;
+        statusFailures = 0;
+        reconnectAttempts = 0;
+        skipsRemaining = 0;
+        notify();
+      }
+      return;
+    }
+
+    // Disconnected: try to reconnect on a backoff schedule.
+    if (skipsRemaining > 0) {
+      skipsRemaining--;
+      return;
+    }
+    const report = await connect();
+    if (report.connected) {
+      reconnectAttempts = 0;
+      skipsRemaining = 0;
+    } else {
+      skipsRemaining = reconnectSkip();
+      reconnectAttempts++;
+    }
+  } finally {
+    ticking = false;
+  }
+}
+
+export function startPolling(intervalMs = POLL_MS): void {
+  stopPolling();
+  pollTimer = window.setInterval(() => void tick(), intervalMs);
 }
 
 export function stopPolling(): void {
   if (pollTimer) window.clearInterval(pollTimer);
   pollTimer = undefined;
+  statusFailures = 0;
+  reconnectAttempts = 0;
+  skipsRemaining = 0;
 }
