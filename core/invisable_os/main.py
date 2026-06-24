@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from invisable_os import __version__
 from invisable_os.api import router
+from invisable_os.api.auth import require_api_key
 from invisable_os.config import get_settings
 from invisable_os.guardrails.policy import PRIME_DIRECTIVE
 
@@ -60,7 +61,8 @@ def create_app() -> FastAPI:
             "dashboard": "/app/",
         }
 
-    app.include_router(router)
+    # The /v1 surface is gated by the optional API key (open when none is set).
+    app.include_router(router, dependencies=[Depends(require_api_key)])
 
     # Serve the installable PWA dashboard at /app (if bundled).
     from pathlib import Path

@@ -6,8 +6,14 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+const apiKey = () => { try { return localStorage.getItem("invisable_api_key") || ""; } catch { return ""; } };
+
 async function api(path, opts = {}) {
-  const res = await fetch(API + path, { headers: { "content-type": "application/json" }, ...opts });
+  const headers = { "content-type": "application/json", ...(opts.headers || {}) };
+  const key = apiKey();
+  if (key) headers["X-API-Key"] = key;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) throw new Error(`401 — set your API key in Values → Access`);
   if (!res.ok) throw new Error(`${res.status} ${path}`);
   return res.status === 204 ? null : res.json();
 }
@@ -164,6 +170,54 @@ views.agents = async (root) => {
     </div>`).join("");
 };
 
+views.analytics = async (root) => {
+  root.innerHTML = `<div class="row"><h2>Analytics</h2><div class="spacer"></div>
+    <button class="btn ghost" id="refresh">Refresh</button></div>
+    <div class="stats" id="stats"></div>
+    <div class="row"><h3>Founder Recognition Index over time</h3></div>
+    <div id="trend" style="display:flex;align-items:flex-end;gap:4px;height:120px;padding:10px;background:rgba(255,255,255,.03);border-radius:10px;overflow-x:auto"></div>
+    <div class="row"><h3>Latest recognition breakdown</h3></div>
+    <div class="meta" id="breakdown"></div>
+    <div class="muted" style="margin-top:12px">Recognition is a <b>consequence of genuine impact</b> — media mentions, podcast &amp; speaking invitations, partner/sponsor enquiries, profile visits. Feed it from the Watchtower (Integrations → metrics sync, or the nightly learning workflow).</div>`;
+  $("#refresh", root).onclick = () => views.analytics(root);
+
+  const pct = (x) => `${Math.round((x || 0) * 100)}%`;
+  const rec = await api("/v1/founder/recognition");
+  const health = await api("/health").catch(() => ({}));
+  let share = null;
+  try {
+    const q = await api("/v1/queue");
+    const items = q.items || [];
+    if (items.length) share = items.filter((i) => (i.candidate || {}).founder_centred).length / items.length;
+  } catch {}
+
+  const cells = [
+    ["Recognition index", pct(rec.latest)],
+    ["Data points", rec.points || 0],
+    ["Founder presence", share == null ? "–" : pct(share)],
+    ["Target", pct(health.founder_presence_target)],
+  ];
+  $("#stats", root).innerHTML = cells.map(([l, n]) => `<div class="stat"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
+
+  const hist = rec.history || [];
+  const trend = $("#trend", root);
+  if (!hist.length) {
+    trend.innerHTML = `<div class="muted">No recognition data yet — run a metrics sync in Integrations.</div>`;
+  } else {
+    const max = Math.max(...hist.map((h) => h.index_value || 0), 0.0001);
+    trend.innerHTML = hist.map((h) => {
+      const ht = Math.max(Math.round(((h.index_value || 0) / max) * 100), 3);
+      return `<span title="${esc((h.at || "").slice(0, 10))}: ${pct(h.index_value)}" style="flex:0 0 12px;height:${ht}%;background:var(--accent);border-radius:3px 3px 0 0"></span>`;
+    }).join("");
+  }
+
+  const bd = (hist[hist.length - 1] || {}).breakdown || {};
+  const entries = Object.entries(bd).filter(([, v]) => v);
+  $("#breakdown", root).innerHTML = entries.length
+    ? entries.map(([k, v]) => `<span class="badge">${esc(k)}: ${v}</span>`).join("")
+    : `<span class="muted">No breakdown yet.</span>`;
+};
+
 views.values = async (root) => {
   const v = await api("/v1/values");
   const mix = await api("/v1/personality/mix").catch(() => ({}));
@@ -175,7 +229,16 @@ views.values = async (root) => {
       <div class="card"><h3>Never optimise for</h3><ul>${v.never_optimise_for.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <div class="card"><h3>Never do</h3><ul>${v.never_do.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <div class="card"><h3>Content mix</h3><ul>${Object.entries(mix).map(([k, val]) => `<li>${esc(k)}: ${Math.round(val * 100)}%</li>`).join("")}</ul></div>
+      <div class="card"><h3>Access</h3>
+        <p class="muted">Only needed if the server sets <code>INVISABLE_API_KEY</code>. Stored locally in this browser and sent as <code>X-API-Key</code>.</p>
+        <input id="apikey" type="password" placeholder="API key" style="width:100%;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit" />
+        <div class="actions" style="margin-top:8px"><button class="btn" id="savekey">Save key</button><button class="btn ghost" id="clearkey">Clear</button></div>
+      </div>
     </div>`;
+  const input = $("#apikey", root);
+  input.value = apiKey();
+  $("#savekey", root).onclick = () => { try { localStorage.setItem("invisable_api_key", input.value.trim()); toast("API key saved"); } catch { toast("Could not save key"); } };
+  $("#clearkey", root).onclick = () => { try { localStorage.removeItem("invisable_api_key"); input.value = ""; toast("API key cleared"); } catch {} };
 };
 
 views.integrations = async (root) => {
